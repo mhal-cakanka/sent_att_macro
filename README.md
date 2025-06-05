@@ -12,7 +12,7 @@ This repository contains code and scripts to:
 - Evaluate results across all stocks in the sample.
 - Create summary tables and figures.
 
-**Note:** Some scripts rely on proprietary data (e.g., Bloomberg Terminal, ProQuest). These datasets are not included and must be acquired separately.
+**Note:** Some scripts rely on proprietary data (e.g., Bloomberg Terminal, Twitter/X). These datasets are not included and must be acquired separately.
 
 
 ## Repository Structure
