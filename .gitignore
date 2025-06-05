@@ -1,0 +1,55 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Ignore folder "bloomberg/partial results"
+bloomberg/partial results/
+
+# Ignore file "bloomberg/econ_releases_complete.xlsx"
+bloomberg/econ_releases_complete.xlsx
+
+# Ignore everything in "dataset" except "nams.csv"
+dataset/*
+!dataset/nams.csv
+
+# Ignore "figures/results" and "figures/timing" but keep other files in "figures"
+figures/results/
+figures/timing/
+
+# Ignore everything in "finbert" except "load.py"
+finbert/*
+!finbert/load.py
+
+# Ignore "google/data" and "google/partial results" but keep other files in "google"
+google/data/
+google/partial results/
+
+# Ignore "models/files" and "models/results" but keep other files in "models"
+models/files/
+models/results/
+
+# Ignore "proquest/data", "proquest/partial results", and "proquest/finbert.sent.csv" but keep rest
+proquest/data/
+proquest/partial results/
+proquest/finbert.sent.csv
+
+# Ignore specified subfolders and files in "stockdata", keep rest
+stockdata/data/
+stockdata/final/
+stockdata/stock_splits/
+stockdata/stocks/
+stockdata/split.list.RData
+stockdata/symbols.RData
+
+# Ignore "tables/mcs" and "tables/results", keep rest
+tables/mcs/
+tables/results/
+
+# Ignore "twitter/data" and "twitter/partial results", keep rest
+twitter/data/
+twitter/partial results/
+
+# Ignore "wiki/data" and "wiki/partial results", keep rest
+wiki/data/
+wiki/partial results/

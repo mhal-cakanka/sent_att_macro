@@ -1,0 +1,283 @@
+"num","Var","Source","Category","Type.of.variable","Keyword","Event","Sentiment"
+1,"b.1","bloom","event","dummy","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls",NA
+2,"b.2","bloom","event","dummy","Initial Jobless Claims","Initial Jobless Claims",NA
+3,"b.3","bloom","event","dummy","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)",NA
+4,"b.4","bloom","event","dummy","GDP Annualized QoQ","GDP Annualized QoQ",NA
+5,"b.5","bloom","event","dummy","CPI MoM","CPI MoM",NA
+6,"b.6","bloom","event","dummy","ISM Manufacturing","ISM Manufacturing",NA
+7,"b.7","bloom","event","dummy","U. of Mich. Sentiment","U. of Mich. Sentiment",NA
+8,"b.8","bloom","event","dummy","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence",NA
+9,"b.9","bloom","event","dummy","Retail Sales Advance MoM","Retail Sales Advance MoM",NA
+10,"b.10","bloom","event","dummy","Durable Goods Orders","Durable Goods Orders",NA
+11,"e.1","bloom","att","#ests","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls",NA
+12,"e.2","bloom","att","#ests","Initial Jobless Claims","Initial Jobless Claims",NA
+13,"e.3","bloom","att","#ests","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)",NA
+14,"e.4","bloom","att","#ests","GDP Annualized QoQ","GDP Annualized QoQ",NA
+15,"e.5","bloom","att","#ests","CPI MoM","CPI MoM",NA
+16,"e.6","bloom","att","#ests","ISM Manufacturing","ISM Manufacturing",NA
+17,"e.7","bloom","att","#ests","U. of Mich. Sentiment","U. of Mich. Sentiment",NA
+18,"e.8","bloom","att","#ests","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence",NA
+19,"e.9","bloom","att","#ests","Retail Sales Advance MoM","Retail Sales Advance MoM",NA
+20,"e.10","bloom","att","#ests","Durable Goods Orders","Durable Goods Orders",NA
+21,"u.1","bloom","event","uncertainty","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls",NA
+22,"u.2","bloom","event","uncertainty","Initial Jobless Claims","Initial Jobless Claims",NA
+23,"u.3","bloom","event","uncertainty","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)",NA
+24,"u.4","bloom","event","uncertainty","GDP Annualized QoQ","GDP Annualized QoQ",NA
+25,"u.5","bloom","event","uncertainty","CPI MoM","CPI MoM",NA
+26,"u.6","bloom","event","uncertainty","ISM Manufacturing","ISM Manufacturing",NA
+27,"u.7","bloom","event","uncertainty","U. of Mich. Sentiment","U. of Mich. Sentiment",NA
+28,"u.8","bloom","event","uncertainty","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence",NA
+29,"u.9","bloom","event","uncertainty","Retail Sales Advance MoM","Retail Sales Advance MoM",NA
+30,"u.10","bloom","event","uncertainty","Durable Goods Orders","Durable Goods Orders",NA
+31,"r.1","bloom","event","range","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls",NA
+32,"r.2","bloom","event","range","Initial Jobless Claims","Initial Jobless Claims",NA
+33,"r.3","bloom","event","range","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)",NA
+34,"r.4","bloom","event","range","GDP Annualized QoQ","GDP Annualized QoQ",NA
+35,"r.5","bloom","event","range","CPI MoM","CPI MoM",NA
+36,"r.6","bloom","event","range","ISM Manufacturing","ISM Manufacturing",NA
+37,"r.7","bloom","event","range","U. of Mich. Sentiment","U. of Mich. Sentiment",NA
+38,"r.8","bloom","event","range","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence",NA
+39,"r.9","bloom","event","range","Retail Sales Advance MoM","Retail Sales Advance MoM",NA
+40,"r.10","bloom","event","range","Durable Goods Orders","Durable Goods Orders",NA
+41,"gg.1","gt","att","general volume","General","General",NA
+42,"ge.1","gt","att","event volume","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls",NA
+43,"ge.2","gt","att","event volume","Initial Jobless Claims","Initial Jobless Claims",NA
+44,"ge.3","gt","att","event volume","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)",NA
+45,"ge.4","gt","att","event volume","GDP Annualized QoQ","GDP Annualized QoQ",NA
+46,"ge.5","gt","att","event volume","CPI MoM","CPI MoM",NA
+47,"ge.6","gt","att","event volume","ISM Manufacturing","ISM Manufacturing",NA
+48,"ge.7","gt","att","event volume","U. of Mich. Sentiment","U. of Mich. Sentiment",NA
+49,"ge.8","gt","att","event volume","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence",NA
+50,"ge.9","gt","att","event volume","Retail Sales Advance MoM","Retail Sales Advance MoM",NA
+51,"ge.10","gt","att","event volume","Durable Goods Orders","Durable Goods Orders",NA
+52,"wg.1","wiki","att","general volume","General","General",NA
+53,"we.1","wiki","att","event volume","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls",NA
+54,"we.2","wiki","att","event volume","Initial Jobless Claims","Initial Jobless Claims",NA
+55,"we.3","wiki","att","event volume","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)",NA
+56,"we.4","wiki","att","event volume","GDP Annualized QoQ","GDP Annualized QoQ",NA
+57,"we.5","wiki","att","event volume","CPI MoM","CPI MoM",NA
+58,"we.6","wiki","att","event volume","ISM Manufacturing","ISM Manufacturing",NA
+59,"we.7","wiki","att","event volume","U. of Mich. Sentiment","U. of Mich. Sentiment",NA
+60,"we.8","wiki","att","event volume","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence",NA
+61,"we.9","wiki","att","event volume","Retail Sales Advance MoM","Retail Sales Advance MoM",NA
+62,"we.10","wiki","att","event volume","Durable Goods Orders","Durable Goods Orders",NA
+63,"tg.1","tw","att","volume of tweets","General","General",NA
+64,"te.1","tw","att","volume of tweets","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls",NA
+65,"te.2","tw","att","volume of tweets","Initial Jobless Claims","Initial Jobless Claims",NA
+66,"te.3","tw","att","volume of tweets","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)",NA
+67,"te.4","tw","att","volume of tweets","GDP Annualized QoQ","GDP Annualized QoQ",NA
+68,"te.5","tw","att","volume of tweets","CPI MoM","CPI MoM",NA
+69,"te.6","tw","att","volume of tweets","ISM Manufacturing","ISM Manufacturing",NA
+70,"te.7","tw","att","volume of tweets","U. of Mich. Sentiment","U. of Mich. Sentiment",NA
+71,"te.8","tw","att","volume of tweets","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence",NA
+72,"te.9","tw","att","volume of tweets","Retail Sales Advance MoM","Retail Sales Advance MoM",NA
+73,"te.10","tw","att","volume of tweets","Durable Goods Orders","Durable Goods Orders",NA
+74,"tg.2","tw","sent","sentiment","General","General","emolex"
+75,"te.11","tw","sent","sentiment","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","emolex"
+76,"te.12","tw","sent","sentiment","Initial Jobless Claims","Initial Jobless Claims","emolex"
+77,"te.13","tw","sent","sentiment","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","emolex"
+78,"te.14","tw","sent","sentiment","GDP Annualized QoQ","GDP Annualized QoQ","emolex"
+79,"te.15","tw","sent","sentiment","CPI MoM","CPI MoM","emolex"
+80,"te.16","tw","sent","sentiment","ISM Manufacturing","ISM Manufacturing","emolex"
+81,"te.17","tw","sent","sentiment","U. of Mich. Sentiment","U. of Mich. Sentiment","emolex"
+82,"te.18","tw","sent","sentiment","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","emolex"
+83,"te.19","tw","sent","sentiment","Retail Sales Advance MoM","Retail Sales Advance MoM","emolex"
+84,"te.20","tw","sent","sentiment","Durable Goods Orders","Durable Goods Orders","emolex"
+85,"tg.3","tw","sent","positive emotions","General","General","emolex"
+86,"te.21","tw","sent","positive emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","emolex"
+87,"te.22","tw","sent","positive emotions","Initial Jobless Claims","Initial Jobless Claims","emolex"
+88,"te.23","tw","sent","positive emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","emolex"
+89,"te.24","tw","sent","positive emotions","GDP Annualized QoQ","GDP Annualized QoQ","emolex"
+90,"te.25","tw","sent","positive emotions","CPI MoM","CPI MoM","emolex"
+91,"te.26","tw","sent","positive emotions","ISM Manufacturing","ISM Manufacturing","emolex"
+92,"te.27","tw","sent","positive emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","emolex"
+93,"te.28","tw","sent","positive emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","emolex"
+94,"te.29","tw","sent","positive emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","emolex"
+95,"te.30","tw","sent","positive emotions","Durable Goods Orders","Durable Goods Orders","emolex"
+96,"tg.4","tw","sent","negative emotions","General","General","emolex"
+97,"te.31","tw","sent","negative emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","emolex"
+98,"te.32","tw","sent","negative emotions","Initial Jobless Claims","Initial Jobless Claims","emolex"
+99,"te.33","tw","sent","negative emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","emolex"
+100,"te.34","tw","sent","negative emotions","GDP Annualized QoQ","GDP Annualized QoQ","emolex"
+101,"te.35","tw","sent","negative emotions","CPI MoM","CPI MoM","emolex"
+102,"te.36","tw","sent","negative emotions","ISM Manufacturing","ISM Manufacturing","emolex"
+103,"te.37","tw","sent","negative emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","emolex"
+104,"te.38","tw","sent","negative emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","emolex"
+105,"te.39","tw","sent","negative emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","emolex"
+106,"te.40","tw","sent","negative emotions","Durable Goods Orders","Durable Goods Orders","emolex"
+107,"tg.5","tw","sent","sentiment","General","General","vader"
+108,"te.41","tw","sent","sentiment","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","vader"
+109,"te.42","tw","sent","sentiment","Initial Jobless Claims","Initial Jobless Claims","vader"
+110,"te.43","tw","sent","sentiment","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","vader"
+111,"te.44","tw","sent","sentiment","GDP Annualized QoQ","GDP Annualized QoQ","vader"
+112,"te.45","tw","sent","sentiment","CPI MoM","CPI MoM","vader"
+113,"te.46","tw","sent","sentiment","ISM Manufacturing","ISM Manufacturing","vader"
+114,"te.47","tw","sent","sentiment","U. of Mich. Sentiment","U. of Mich. Sentiment","vader"
+115,"te.48","tw","sent","sentiment","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","vader"
+116,"te.49","tw","sent","sentiment","Retail Sales Advance MoM","Retail Sales Advance MoM","vader"
+117,"te.50","tw","sent","sentiment","Durable Goods Orders","Durable Goods Orders","vader"
+118,"tg.6","tw","sent","positive emotions","General","General","vader"
+119,"te.51","tw","sent","positive emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","vader"
+120,"te.52","tw","sent","positive emotions","Initial Jobless Claims","Initial Jobless Claims","vader"
+121,"te.53","tw","sent","positive emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","vader"
+122,"te.54","tw","sent","positive emotions","GDP Annualized QoQ","GDP Annualized QoQ","vader"
+123,"te.55","tw","sent","positive emotions","CPI MoM","CPI MoM","vader"
+124,"te.56","tw","sent","positive emotions","ISM Manufacturing","ISM Manufacturing","vader"
+125,"te.57","tw","sent","positive emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","vader"
+126,"te.58","tw","sent","positive emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","vader"
+127,"te.59","tw","sent","positive emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","vader"
+128,"te.60","tw","sent","positive emotions","Durable Goods Orders","Durable Goods Orders","vader"
+129,"tg.7","tw","sent","negative emotions","General","General","vader"
+130,"te.61","tw","sent","negative emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","vader"
+131,"te.62","tw","sent","negative emotions","Initial Jobless Claims","Initial Jobless Claims","vader"
+132,"te.63","tw","sent","negative emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","vader"
+133,"te.64","tw","sent","negative emotions","GDP Annualized QoQ","GDP Annualized QoQ","vader"
+134,"te.65","tw","sent","negative emotions","CPI MoM","CPI MoM","vader"
+135,"te.66","tw","sent","negative emotions","ISM Manufacturing","ISM Manufacturing","vader"
+136,"te.67","tw","sent","negative emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","vader"
+137,"te.68","tw","sent","negative emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","vader"
+138,"te.69","tw","sent","negative emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","vader"
+139,"te.70","tw","sent","negative emotions","Durable Goods Orders","Durable Goods Orders","vader"
+140,"tg.8","tw","sent","sentiment","General","General","finbert"
+141,"te.71","tw","sent","sentiment","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","finbert"
+142,"te.72","tw","sent","sentiment","Initial Jobless Claims","Initial Jobless Claims","finbert"
+143,"te.73","tw","sent","sentiment","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","finbert"
+144,"te.74","tw","sent","sentiment","GDP Annualized QoQ","GDP Annualized QoQ","finbert"
+145,"te.75","tw","sent","sentiment","CPI MoM","CPI MoM","finbert"
+146,"te.76","tw","sent","sentiment","ISM Manufacturing","ISM Manufacturing","finbert"
+147,"te.77","tw","sent","sentiment","U. of Mich. Sentiment","U. of Mich. Sentiment","finbert"
+148,"te.78","tw","sent","sentiment","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","finbert"
+149,"te.79","tw","sent","sentiment","Retail Sales Advance MoM","Retail Sales Advance MoM","finbert"
+150,"te.80","tw","sent","sentiment","Durable Goods Orders","Durable Goods Orders","finbert"
+151,"tg.9","tw","sent","positive emotions","General","General","finbert"
+152,"te.81","tw","sent","positive emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","finbert"
+153,"te.82","tw","sent","positive emotions","Initial Jobless Claims","Initial Jobless Claims","finbert"
+154,"te.83","tw","sent","positive emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","finbert"
+155,"te.84","tw","sent","positive emotions","GDP Annualized QoQ","GDP Annualized QoQ","finbert"
+156,"te.85","tw","sent","positive emotions","CPI MoM","CPI MoM","finbert"
+157,"te.86","tw","sent","positive emotions","ISM Manufacturing","ISM Manufacturing","finbert"
+158,"te.87","tw","sent","positive emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","finbert"
+159,"te.88","tw","sent","positive emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","finbert"
+160,"te.89","tw","sent","positive emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","finbert"
+161,"te.90","tw","sent","positive emotions","Durable Goods Orders","Durable Goods Orders","finbert"
+162,"tg.10","tw","sent","negative emotions","General","General","finbert"
+163,"te.91","tw","sent","negative emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","finbert"
+164,"te.92","tw","sent","negative emotions","Initial Jobless Claims","Initial Jobless Claims","finbert"
+165,"te.93","tw","sent","negative emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","finbert"
+166,"te.94","tw","sent","negative emotions","GDP Annualized QoQ","GDP Annualized QoQ","finbert"
+167,"te.95","tw","sent","negative emotions","CPI MoM","CPI MoM","finbert"
+168,"te.96","tw","sent","negative emotions","ISM Manufacturing","ISM Manufacturing","finbert"
+169,"te.97","tw","sent","negative emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","finbert"
+170,"te.98","tw","sent","negative emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","finbert"
+171,"te.99","tw","sent","negative emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","finbert"
+172,"te.100","tw","sent","negative emotions","Durable Goods Orders","Durable Goods Orders","finbert"
+173,"pg.1","pq","att","volume of articles","General","General",NA
+174,"pe.1","pq","att","volume of articles","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls",NA
+175,"pe.2","pq","att","volume of articles","Initial Jobless Claims","Initial Jobless Claims",NA
+176,"pe.3","pq","att","volume of articles","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)",NA
+177,"pe.4","pq","att","volume of articles","GDP Annualized QoQ","GDP Annualized QoQ",NA
+178,"pe.5","pq","att","volume of articles","CPI MoM","CPI MoM",NA
+179,"pe.6","pq","att","volume of articles","ISM Manufacturing","ISM Manufacturing",NA
+180,"pe.7","pq","att","volume of articles","U. of Mich. Sentiment","U. of Mich. Sentiment",NA
+181,"pe.8","pq","att","volume of articles","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence",NA
+182,"pe.9","pq","att","volume of articles","Retail Sales Advance MoM","Retail Sales Advance MoM",NA
+183,"pe.10","pq","att","volume of articles","Durable Goods Orders","Durable Goods Orders",NA
+184,"pg.2","pq","sent","sentiment","General","General","emolex"
+185,"pe.11","pq","sent","sentiment","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","emolex"
+186,"pe.12","pq","sent","sentiment","Initial Jobless Claims","Initial Jobless Claims","emolex"
+187,"pe.13","pq","sent","sentiment","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","emolex"
+188,"pe.14","pq","sent","sentiment","GDP Annualized QoQ","GDP Annualized QoQ","emolex"
+189,"pe.15","pq","sent","sentiment","CPI MoM","CPI MoM","emolex"
+190,"pe.16","pq","sent","sentiment","ISM Manufacturing","ISM Manufacturing","emolex"
+191,"pe.17","pq","sent","sentiment","U. of Mich. Sentiment","U. of Mich. Sentiment","emolex"
+192,"pe.18","pq","sent","sentiment","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","emolex"
+193,"pe.19","pq","sent","sentiment","Retail Sales Advance MoM","Retail Sales Advance MoM","emolex"
+194,"pe.20","pq","sent","sentiment","Durable Goods Orders","Durable Goods Orders","emolex"
+195,"pg.3","pq","sent","positive emotions","General","General","emolex"
+196,"pe.21","pq","sent","positive emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","emolex"
+197,"pe.22","pq","sent","positive emotions","Initial Jobless Claims","Initial Jobless Claims","emolex"
+198,"pe.23","pq","sent","positive emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","emolex"
+199,"pe.24","pq","sent","positive emotions","GDP Annualized QoQ","GDP Annualized QoQ","emolex"
+200,"pe.25","pq","sent","positive emotions","CPI MoM","CPI MoM","emolex"
+201,"pe.26","pq","sent","positive emotions","ISM Manufacturing","ISM Manufacturing","emolex"
+202,"pe.27","pq","sent","positive emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","emolex"
+203,"pe.28","pq","sent","positive emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","emolex"
+204,"pe.29","pq","sent","positive emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","emolex"
+205,"pe.30","pq","sent","positive emotions","Durable Goods Orders","Durable Goods Orders","emolex"
+206,"pg.4","pq","sent","negative emotions","General","General","emolex"
+207,"pe.31","pq","sent","negative emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","emolex"
+208,"pe.32","pq","sent","negative emotions","Initial Jobless Claims","Initial Jobless Claims","emolex"
+209,"pe.33","pq","sent","negative emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","emolex"
+210,"pe.34","pq","sent","negative emotions","GDP Annualized QoQ","GDP Annualized QoQ","emolex"
+211,"pe.35","pq","sent","negative emotions","CPI MoM","CPI MoM","emolex"
+212,"pe.36","pq","sent","negative emotions","ISM Manufacturing","ISM Manufacturing","emolex"
+213,"pe.37","pq","sent","negative emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","emolex"
+214,"pe.38","pq","sent","negative emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","emolex"
+215,"pe.39","pq","sent","negative emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","emolex"
+216,"pe.40","pq","sent","negative emotions","Durable Goods Orders","Durable Goods Orders","emolex"
+217,"pg.5","pq","sent","sentiment","General","General","vader"
+218,"pe.41","pq","sent","sentiment","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","vader"
+219,"pe.42","pq","sent","sentiment","Initial Jobless Claims","Initial Jobless Claims","vader"
+220,"pe.43","pq","sent","sentiment","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","vader"
+221,"pe.44","pq","sent","sentiment","GDP Annualized QoQ","GDP Annualized QoQ","vader"
+222,"pe.45","pq","sent","sentiment","CPI MoM","CPI MoM","vader"
+223,"pe.46","pq","sent","sentiment","ISM Manufacturing","ISM Manufacturing","vader"
+224,"pe.47","pq","sent","sentiment","U. of Mich. Sentiment","U. of Mich. Sentiment","vader"
+225,"pe.48","pq","sent","sentiment","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","vader"
+226,"pe.49","pq","sent","sentiment","Retail Sales Advance MoM","Retail Sales Advance MoM","vader"
+227,"pe.50","pq","sent","sentiment","Durable Goods Orders","Durable Goods Orders","vader"
+228,"pg.6","pq","sent","positive emotions","General","General","vader"
+229,"pe.51","pq","sent","positive emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","vader"
+230,"pe.52","pq","sent","positive emotions","Initial Jobless Claims","Initial Jobless Claims","vader"
+231,"pe.53","pq","sent","positive emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","vader"
+232,"pe.54","pq","sent","positive emotions","GDP Annualized QoQ","GDP Annualized QoQ","vader"
+233,"pe.55","pq","sent","positive emotions","CPI MoM","CPI MoM","vader"
+234,"pe.56","pq","sent","positive emotions","ISM Manufacturing","ISM Manufacturing","vader"
+235,"pe.57","pq","sent","positive emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","vader"
+236,"pe.58","pq","sent","positive emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","vader"
+237,"pe.59","pq","sent","positive emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","vader"
+238,"pe.60","pq","sent","positive emotions","Durable Goods Orders","Durable Goods Orders","vader"
+239,"pg.7","pq","sent","negative emotions","General","General","vader"
+240,"pe.61","pq","sent","negative emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","vader"
+241,"pe.62","pq","sent","negative emotions","Initial Jobless Claims","Initial Jobless Claims","vader"
+242,"pe.63","pq","sent","negative emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","vader"
+243,"pe.64","pq","sent","negative emotions","GDP Annualized QoQ","GDP Annualized QoQ","vader"
+244,"pe.65","pq","sent","negative emotions","CPI MoM","CPI MoM","vader"
+245,"pe.66","pq","sent","negative emotions","ISM Manufacturing","ISM Manufacturing","vader"
+246,"pe.67","pq","sent","negative emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","vader"
+247,"pe.68","pq","sent","negative emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","vader"
+248,"pe.69","pq","sent","negative emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","vader"
+249,"pe.70","pq","sent","negative emotions","Durable Goods Orders","Durable Goods Orders","vader"
+250,"pg.8","pq","sent","sentiment","General","General","finbert"
+251,"pe.71","pq","sent","sentiment","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","finbert"
+252,"pe.72","pq","sent","sentiment","Initial Jobless Claims","Initial Jobless Claims","finbert"
+253,"pe.73","pq","sent","sentiment","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","finbert"
+254,"pe.74","pq","sent","sentiment","GDP Annualized QoQ","GDP Annualized QoQ","finbert"
+255,"pe.75","pq","sent","sentiment","CPI MoM","CPI MoM","finbert"
+256,"pe.76","pq","sent","sentiment","ISM Manufacturing","ISM Manufacturing","finbert"
+257,"pe.77","pq","sent","sentiment","U. of Mich. Sentiment","U. of Mich. Sentiment","finbert"
+258,"pe.78","pq","sent","sentiment","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","finbert"
+259,"pe.79","pq","sent","sentiment","Retail Sales Advance MoM","Retail Sales Advance MoM","finbert"
+260,"pe.80","pq","sent","sentiment","Durable Goods Orders","Durable Goods Orders","finbert"
+261,"pg.9","pq","sent","positive emotions","General","General","finbert"
+262,"pe.81","pq","sent","positive emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","finbert"
+263,"pe.82","pq","sent","positive emotions","Initial Jobless Claims","Initial Jobless Claims","finbert"
+264,"pe.83","pq","sent","positive emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","finbert"
+265,"pe.84","pq","sent","positive emotions","GDP Annualized QoQ","GDP Annualized QoQ","finbert"
+266,"pe.85","pq","sent","positive emotions","CPI MoM","CPI MoM","finbert"
+267,"pe.86","pq","sent","positive emotions","ISM Manufacturing","ISM Manufacturing","finbert"
+268,"pe.87","pq","sent","positive emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","finbert"
+269,"pe.88","pq","sent","positive emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","finbert"
+270,"pe.89","pq","sent","positive emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","finbert"
+271,"pe.90","pq","sent","positive emotions","Durable Goods Orders","Durable Goods Orders","finbert"
+272,"pg.10","pq","sent","negative emotions","General","General","finbert"
+273,"pe.91","pq","sent","negative emotions","Change in Nonfarm Payrolls","Change in Nonfarm Payrolls","finbert"
+274,"pe.92","pq","sent","negative emotions","Initial Jobless Claims","Initial Jobless Claims","finbert"
+275,"pe.93","pq","sent","negative emotions","FOMC Rate Decision (Upper Bound)","FOMC Rate Decision (Upper Bound)","finbert"
+276,"pe.94","pq","sent","negative emotions","GDP Annualized QoQ","GDP Annualized QoQ","finbert"
+277,"pe.95","pq","sent","negative emotions","CPI MoM","CPI MoM","finbert"
+278,"pe.96","pq","sent","negative emotions","ISM Manufacturing","ISM Manufacturing","finbert"
+279,"pe.97","pq","sent","negative emotions","U. of Mich. Sentiment","U. of Mich. Sentiment","finbert"
+280,"pe.98","pq","sent","negative emotions","Conf. Board Consumer Confidence","Conf. Board Consumer Confidence","finbert"
+281,"pe.99","pq","sent","negative emotions","Retail Sales Advance MoM","Retail Sales Advance MoM","finbert"
+282,"pe.100","pq","sent","negative emotions","Durable Goods Orders","Durable Goods Orders","finbert"
