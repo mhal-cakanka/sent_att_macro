@@ -1,11 +1,11 @@
 #!/bin/bash
 
 echo 1
-DATADIR=/storage/brno2/home/mhalouskova/sent_att_macro
+DATADIR=/storage/brno12-cerit/home/user123/sent_att_macro
 
 echo 2
 
-export R_LIBS=/storage/brno2/home/mhalouskova/Rpackages
+export R_LIBS=/storage/brno12-cerit/home/user123/Rpackages
 
 echo 3
 
