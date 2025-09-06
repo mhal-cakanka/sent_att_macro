@@ -70,7 +70,18 @@ list_symbols <- function(url){
 
 
 
+
 ######################### HF RV DATA ###################################
+
+
+# Function to remove extreme values
+fun <- function(x,qt=c(.99)){
+  quantiles <- quantile( x, qt, na.rm = TRUE)
+  x[ x > quantiles[[1]] ] <- quantiles[[1]]
+  x
+}
+
+
 
 # Load and process minute data into returns and OHLC prices
 minute_hf<-function(symbols, wd="./input/hfstocks", my_wd){
@@ -210,10 +221,30 @@ cj<-function(rets,alpha,rv){
   z <- MedRVJumptest(rv,medrv,medrq,m=length(rets))
   jind <- z > qnorm(1-alpha)
   jc <-max(0,(rv-medrv))
-  jc <- sum(jind)*jc
+  jc <- sum(jind)*jc   # sum is used to turn TRUE to 1 and FALSE to 0
   cc <- sum(jind)*medrv + sum(!jind)*rv
   
   return(c(jc,cc))
+}
+
+
+# Realized skewness
+rskew_fun <- function(rets,rv){
+  N <- length(rets)
+  rskew <- (sqrt(N)*sum(rets^3, na.rm=T))/(rv^(3/2))
+  return(rskew)
+}
+# Realized kurtosis
+rkurt_fun <-function(rets, rv){
+  N <- length(rets)
+  rkurt <- (N*sum(rets^4, na.rm=T))/(rv^(2))
+  return(rkurt)
+}
+
+# Realized leverage (as in LHAR model by Corsi and Reno 2012) == negative returns
+rl_fun <- function(rets){
+  rlev <- sum(rets[rets < 0], na.rm=T)
+  return(rlev)
 }
 
 
@@ -249,7 +280,8 @@ aggreg<-function(L1, nam, lags=c(1,5,22), ahead=NULL){
 }
 
 # Function produces daily RV variables from minute data
-daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1, split.list,alpha=0.05, overnight="simple"){
+daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1, 
+                   split.list,alpha=0.05, overnight="simple"){
   
   # Prepare an empty list
   hf<-list()
@@ -281,12 +313,15 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1, sp
                # Continuous and jump components, semi-variances, signed jump
                "JC.L1","JC.L5","JC.L22","CC.L1","CC.L5","CC.L22","NSV.L1","NSV.L5","NSV.L22",
                "PSV.L1","PSV.L5","PSV.L22","SJ.L1","SJ.L5","SJ.L22",
+               # Realized skewness, kurtosis, leverage
+               "RSK.L1","RSK.L5","RSK.L22","RK.L1","RK.L5","RK.L22","RLEV.L1","RLEV.L5","RLEV.L22",
                # Log-transformed variables
                "VI.L1.Log","VI.L5.Log","VI.L22.Log","VI.H1.Log","VI.H5.Log","VI.H22.Log",
                "V.L1.Log","V.L5.Log","V.L22.Log","V.H1.Log","V.H5.Log","V.H22.Log",
                "VON.L1.Log","VON.L5.Log","VON.L22.Log","VON.H1.Log","VON.H5.Log","VON.H22.Log",
                "JC.L1.Log","JC.L5.Log","JC.L22.Log","CC.L1.Log","CC.L5.Log","CC.L22.Log","NSV.L1.Log","NSV.L5.Log","NSV.L22.Log",
-               "PSV.L1.Log","PSV.L5.Log","PSV.L22.Log","SJ.L1.Log","SJ.L5.Log","SJ.L22.Log")
+               "PSV.L1.Log","PSV.L5.Log","PSV.L22.Log","SJ.L1.Log","SJ.L5.Log","SJ.L22.Log",
+               "RSK.L1.Log","RSK.L5.Log","RSK.L22.Log","RK.L1.Log","RK.L5.Log","RK.L22.Log","RLEV.L1.Log","RLEV.L5.Log","RLEV.L22.Log")
     
     # Data frame for daily data
     df <- data.frame(matrix(ncol=length(colnms),nrow=N, dimnames=list(NULL,colnms)))
@@ -333,8 +368,13 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1, sp
       # Semi-variances and signed jump
       nsv=sum((rets[rets<=0])^2, na.rm=T); psv=rv-nsv; sj=psv-nsv
       
-      # Assign
-      df[d, c("VI.L1", "JC.L1", "CC.L1", "NSV.L1", "PSV.L1", "SJ.L1")] <- c(rv, jc, cc, nsv, psv, sj)
+      # Realized skewness and kurtosis, realized leverage
+      rskew=rskew_fun(rets,rv); rkurt=rkurt_fun(rets,rv); rlev=rl_fun(rets)
+      
+      
+      # Assign to df
+      df[d, c("VI.L1", "JC.L1", "CC.L1", "NSV.L1", "PSV.L1", "SJ.L1",
+              "RSK.L1", "RK.L1", "RLEV.L1")] <- c(rv, jc, cc, nsv, psv, sj, rskew, rkurt, rlev)
     }
     
     
@@ -353,16 +393,18 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1, sp
     df$RS = h*(h-c) + l*(l-c)
     
     # Annualized
-    annualized_cols =c("VI.L1","JC.L1","CC.L1","NSV.L1","PSV.L1","SJ.L1","PK","GK","RS")
+    annualized_cols =c("VI.L1","JC.L1","CC.L1","NSV.L1","PSV.L1","SJ.L1",
+                       "RSK.L1", "RK.L1", "RLEV.L1", "PK","GK","RS")
     df[,annualized_cols] <- df[,annualized_cols]*100^2 * 252
     
     ##### Lags and future values #####
     ldf<-aggreg(L1=df$VI.L1, nam="VI", lags=c(1,5,22), ahead=c(1,5,22))
-    # df[,colnames(ldf)]<-ldf
-    df <- cbind(df, ldf)
-    for (var in c("JC.L1", "CC.L1", "NSV.L1", "PSV.L1", "SJ.L1")) {
+    df[,colnames(ldf)]<-ldf
+    # df <- cbind(df, ldf)
+    for (var in c("JC.L1", "CC.L1", "NSV.L1", "PSV.L1", "SJ.L1", "RSK.L1", "RK.L1", "RLEV.L1")) {
       ldf <- aggreg(L1 = df[[var]], nam = gsub("\\.L1", "", var), lags = c(1, 5, 22), ahead = NULL)
-      df <- cbind(df, ldf)
+      # df <- cbind(df, ldf)
+      df[,colnames(ldf)]<-ldf
     }
     
     
@@ -461,8 +503,9 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1, sp
     
     tolog =c("VI.L1","VI.L5","VI.L22","VI.H1","VI.H5","VI.H22","V.L1","V.L5","V.L22","V.H1","V.H5","V.H22",
              "VON.L1","VON.L5","VON.L22","VON.H1","VON.H5","VON.H22","JC.L1","JC.L5","JC.L22",
-             "CC.L1","CC.L5","CC.L22","NSV.L1","NSV.L5","NSV.L22","PSV.L1","PSV.L5","PSV.L22"
-             ,"SJ.L1","SJ.L5","SJ.L22"
+             "CC.L1","CC.L5","CC.L22","NSV.L1","NSV.L5","NSV.L22","PSV.L1","PSV.L5","PSV.L22",
+             "SJ.L1","SJ.L5","SJ.L22",
+             "RSK.L1","RSK.L5","RSK.L22","RK.L1","RK.L5","RK.L22","RLEV.L1","RLEV.L5","RLEV.L22"
     )
     
     afterlog=paste(tolog,"Log",sep=".")
@@ -557,4 +600,43 @@ SentiStock = function(market,senti=dataset.complete) {
   }
   
   return(market)
+}
+
+
+
+# In case of variance transformation
+# This is a simplified version of function "transform" from model_functions.R
+LogTransform = function(DT,trans=c(2:4,7:8,13:15)) {
+  
+  # Take care of signed jumps! Condition for negative and non-zero values.
+  NVI = length(trans)
+  
+  # Make those transformations
+  for (k in 1:NVI) {
+    print(k)
+    # Select the variables
+    x = DT[,trans[k]]
+    # Are there any negative values?
+    if (sum(x<0,na.rm=T) == 0) {
+      
+      # If there is 0 -> add 1, else keep ordinary log
+      if (sum(x==0,na.rm=t) > 0) DT[,trans[k]] = log(1+x) else DT[,trans[k]] = log(x)
+      
+      # In case of negative values  
+    } else {
+      
+      # We need to make sure that signs are not forgotten :-)
+      neg.ind=which(x < 0)
+      pos.ind=which(x > 0)
+      x.neg=-1 * log(abs(x[neg.ind]))
+      x.pos=log(x[pos.ind])
+      x[neg.ind]=x.neg
+      x[pos.ind]=x.pos
+      DT[,trans[k]] = x
+      
+    }
+    
+  }
+  
+  return(DT)
 }
