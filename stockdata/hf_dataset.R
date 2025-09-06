@@ -85,14 +85,25 @@ print(paste(from,to, sep=':'))
 
 
 # 1 min OHLC and returns
-# Loads and processes raw stock price data from FirstRate Data
-dts<-minute_hf(symbols[from:to], wd=path_stocks, my_wd=my_wd)
-# Define name of the data file and assign
+# Try to load dts if it exists
 datName<-paste("dts",from,to, sep='_')
-assign(datName, dts)
-# Save the data to a file and clean up
-save(list=datName, file = paste0(path_dt, paste(datName, "RData", sep = ".")))
-rm(list=c(datName));gc()
+tryCatch({
+  load(paste0(path_dt, paste(datName, "RData", sep = ".")))
+  dts <- get(datName)
+  rm(list=c(datName));gc()
+  print("dts file loaded")
+}, error = function(e) {
+  print("dts file not found, processing from raw data")
+  
+  # Loads and processes raw stock price data from FirstRate Data
+  dts<-minute_hf(symbols[from:to], wd=path_stocks, my_wd=my_wd)
+  # Define name of the data file and assign
+  datName<-paste("dts",from,to, sep='_')
+  assign(datName, dts)
+  # Save the data to a file and clean up
+  save(list=datName, file = paste0(path_dt, paste(datName, "RData", sep = ".")))
+  rm(list=c(datName));gc()
+})
 
 
 
