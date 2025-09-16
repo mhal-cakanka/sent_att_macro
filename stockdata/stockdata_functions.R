@@ -613,7 +613,7 @@ LogTransform = function(DT,trans=c(2:4,7:8,13:15)) {
   
   # Make those transformations
   for (k in 1:NVI) {
-    print(k)
+    # print(k)
     # Select the variables
     x = DT[,trans[k]]
     # Are there any negative values?
@@ -640,3 +640,208 @@ LogTransform = function(DT,trans=c(2:4,7:8,13:15)) {
   
   return(DT)
 }
+
+
+# Compute cross-sectional average return volatility (CRV) and append to each stock's data frame
+compute_crv <- function(hf, column_nams=c("VON.L1","VON.L5", "VON.L22","V.L1","V.L5", "V.L22"), 
+                        min_N=2500, LogTrans=TRUE, save_path="./stockdata/final/", my_wd, filenam="hf1_crv"){
+  
+  # List of all stocks
+  symbols <- names(hf)
+  
+  
+  # Subset to stocks with sufficient data, based on min_N
+  obs <- sapply(hf, nrow)
+  symbols_use <- symbols[obs >= min_N]
+  print(paste0("Number of stocks with >= ", min_N, " observations: ", length(symbols_use)))
+  
+  # Subset hf to only those stocks
+  hf_sub <- hf[symbols_use]
+  
+  # Compute crosssectional average return volatility over the selected stocks
+  # Loop over column_nams
+  for (col in column_nams){
+    # Extract both "col" and "Date" columns
+    rv_sub <- lapply(hf_sub, function(df) df[, c("Date", col)])
+    
+    # Combine into a single data frame, merge by "Date", drop "Date" column after merge, keep all NA if missing date for stock
+    rv_merged <- Reduce(function(x, y) merge(x, y, by = "Date", all = TRUE), rv_sub)
+    colnames(rv_merged) <- c("Date", symbols_use)
+    
+    
+    # Compute cross-sectional average volatility for each time point
+    crv <- rowMeans(rv_merged[,-1], na.rm=TRUE)
+    crv_nam=paste("CRV",col,sep=".")
+    
+    # New df with Date and CRV, use crv_nam as column name for crv
+    crv_df <- setNames(data.frame(Date=rv_merged$Date, crv), c("Date", crv_nam))
+    
+    # If this is not the first column, append to existing data frame
+    if (col == column_nams[1]){
+      crv_all <- crv_df
+    } else {
+      crv_all <- merge(crv_all, crv_df, by="Date", all=TRUE)
+    }
+  }
+  
+  tolog=colnames(crv_all)[-1]
+  afterlog=paste(tolog,"Log",sep=".")
+  crv_all[,afterlog] = LogTransform(crv_all[,tolog],trans=c(1:ncol(crv_all[,tolog])))
+  
+  
+  # Append to all data frames in hf_sub, match by Date, keep all rows in hf_sub
+  for (i in seq_along(hf_sub)){
+    hf_sub[[i]] <- merge(hf_sub[[i]], crv_all, by="Date", all.x=TRUE)
+  }
+  
+  
+  setwd(my_wd)
+  setwd(save_path)
+  saveRDS(hf_sub,file=filenam)
+  setwd(my_wd)
+  
+  
+  return(hf_sub)
+}
+
+
+
+############ Bonus function for stock indices in robustness checks #############
+
+select_process_index <- function(indices,symbol,W=501,MR=1502, min_date, max_date){
+  
+  # Select
+  tmp <- indices[indices$Symbol==symbol,c('Date','rv5','rsv','medrv','open_price','close_price')]
+  names(tmp) = c('Date','VI.L1','NSV.L1','MEDRV.L1','Open','Close')
+  
+  # Subset to min_date and max_date
+  tmp <- tmp[tmp$Date>=min_date & tmp$Date<=max_date,]
+  print(paste("Processing symbol:",symbol,min_date, max_date))
+  print(summary(tmp$Date))
+  
+  # N obs
+  TT = dim(tmp)[1]
+  # Annualize
+  tmp[,c('VI.L1','NSV.L1','MEDRV.L1')] = tmp[,c('VI.L1','NSV.L1','MEDRV.L1')]*10000*252
+  # Positive semivariance
+  tmp$PSV.L1 = tmp$VI.L1 - tmp$NSV.L1
+  # Signed jump
+  tmp$SJ.L1 = tmp$PSV.L1 - tmp$NSV.L1
+  # Simple calculation of jump component
+  tmp$JC.L1 = pmax(0,(tmp$VI.L1-tmp$MEDRV.L1))
+  # Continuous component
+  tmp$CC.L1 = tmp$VI.L1 - tmp$JC.L1
+  
+  
+  ##### Lags and future values #####
+  ldf<-aggreg(L1=tmp$VI.L1, nam="VI", lags=c(1,5,22), ahead=c(1,5,22))
+  tmp[,colnames(ldf)]<-ldf
+  for (var in c("JC.L1", "CC.L1", "NSV.L1", "PSV.L1", "SJ.L1")) {
+    ldf <- aggreg(L1 = tmp[[var]], nam = gsub("\\.L1", "", var), lags = c(1, 5, 22), ahead = NULL)
+    tmp[,colnames(ldf)]<-ldf
+  }
+  
+  # Overnight return
+  tmp$OR.L1 = c(NA, log(tmp$Open[-1]) - log(tmp$Close[-TT]))*100
+  # Overnight jump
+  tmp$OJ.L1 = tmp$OR^2*252
+  # Overall price variation (Night + Day)
+  tmp$VON.L1 = tmp$VI.L1 + tmp$OJ.L1
+  # Lags
+  ldf<-aggreg(L1=tmp$VON.L1, nam="VON", lags=c(1,5,22), ahead=c(1,5,22))
+  tmp[,colnames(ldf)]<-ldf
+  tmp$w1=NA
+  tmp$w2=NA
+  tmp$V.L1=NA
+  
+  
+  ##### Hansen & Lunde weights for the overnight return (OJ) and intraday RV (VI.L1) #####
+  # Perform a rolling window estimation of weights
+  # First 500 days rolling window; rolling one-step-ahead estimates; only the most recent 1500 trading days
+  N=TT
+  # Loop over days: seq(501, number of days-1)
+  if(W>(N-1)){
+    WW=N-1
+  } else {
+    WW=W
+  }
+  
+  for (i in seq(WW,(N-1))){
+    
+    # Only take the most recent (MR) 1500 trading days
+    if (i <= MR){
+      from=2
+    } else {
+      move=i-MR
+      from=2+move
+    }
+    to=i
+    if(to>(N-1)){
+      to=N-1
+    }
+    
+    # Squared overnight return
+    night<-tmp$OJ[from:to]
+    # RV measure for the active part of the day
+    day<-tmp$VI.L1[from:to]
+    # Sum of these two (night+day)
+    full<-tmp$VON.L1[from:to]
+    
+    # Remove 5% of extreme values
+    night=fun(night,qt=c(.95))
+    day=fun(day,qt=c(.95))
+    full=day+night
+    
+    # Calculate relative importance factor (phi)
+    mu1=mean(night,na.rm=T)
+    mu2=mean(day,na.rm=T)
+    mu0=mean(full,na.rm=T)
+    eta1=var(night,na.rm=T)
+    eta2=var(day,na.rm=T)
+    eta12=cov(night,day,use="complete.obs")
+    phi=(mu2^2*eta1-mu1*mu2*eta12)/(mu2^2*eta1+mu1^2*eta2-2*mu1*mu2*eta12)
+    # prevent negative weights by setting phi max as 1
+    if (phi>1){phi<-1}
+    
+    # Weights
+    w1=(1-phi)*(mu0/mu1)
+    w2=phi*(mu0/mu2)
+    
+    # Calculate the final full day RV measure (multiply by weights)
+    # For the first loop, use the weight on all first W days
+    if (i==WW){
+      tmp$w1[from:(to+1)]<-w1
+      tmp$w2[from:(to+1)]<-w2
+      weigthed_rv <- w1*tmp$OJ[from:(to+1)] + w2*tmp$VI.L1[from:(to+1)]
+      tmp$V.L1[from:(to+1)]<-weigthed_rv
+    } else {
+      tmp$w1[to+1]<-w1
+      tmp$w2[to+1]<-w2
+      tmp$V.L1[to+1]<-w1*tmp$OJ[to+1] + w2*tmp$VI.L1[to+1]
+    }
+  }
+  
+  ldf<-aggreg(L1=tmp$V.L1, nam="V", lags=c(1,5,22), ahead=c(1,5,22))
+  tmp[,colnames(ldf)]<-ldf
+  
+  ##### Log-transforms ##### 
+  
+  tolog =c("VI.L1","VI.L5","VI.L22","VI.H1","VI.H5","VI.H22","V.L1","V.L5","V.L22","V.H1","V.H5","V.H22",
+           "VON.L1","VON.L5","VON.L22","VON.H1","VON.H5","VON.H22","JC.L1","JC.L5","JC.L22",
+           "CC.L1","CC.L5","CC.L22","NSV.L1","NSV.L5","NSV.L22","PSV.L1","PSV.L5","PSV.L22",
+           "SJ.L1","SJ.L5","SJ.L22")
+  
+  afterlog=paste(tolog,"Log",sep=".")
+  tmp[,afterlog] = LogTransform(tmp[,tolog],trans=c(1:ncol(tmp[,tolog])))
+  
+  print(summary(tmp$Date))
+  
+  # Remove all NAs
+  tmp<-tmp[complete.cases(tmp),]
+  
+  print(paste("Finished symbol:",symbol, ", dates in the final dataset:" ))
+  print(summary(tmp$Date))
+  
+  return(tmp)
+}
+
