@@ -25,6 +25,6 @@ cd $DATADIR
 
 echo 7
 
-Rscript --vanilla model_flow.R $@ > $1.$2.$3.$4.Rout
+Rscript --vanilla model_flow.R $@ > $1.$2.$3.$4.$5.$6.Rout
 
 echo 8

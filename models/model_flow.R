@@ -12,53 +12,65 @@ i <- as.numeric(arg[1])    # stock number i
 nc <- as.numeric(arg[2])   # number of cores
 vers <- arg[3]             # 1w/1s/5w/5s
 depnum <- arg[4]           # number that dictates the dependent variable: 'V.H1.Log'/'V.H5.Log'/'V.H22.Log'
-
+indices <- arg[5]          # F = compute for individual stocks, T = compute for indices
+estim.type <- arg[6]       # 'WLS1', 'WLS3', 'MSE'
 
 # Or run the script directly in RStudio
 # Uncomment all commented out lines to run the script directly in RStudio!
 
 # Select the stock number i, number of cores nc, version vers and dependent variable depnum
-# i=1;nc=12;vers="5w";depnum=1
+# i=1;nc=12;vers="5w";depnum=1;indices=FALSE;estim.type="WLS3"
 
-print(paste("Arguments loaded", i, nc, vers, depnum))
+print(paste("Arguments loaded", i, nc, vers, depnum, indices, estim.type))
 
 
 ######################## LOAD FUNCTIONS ########################
 
-# Source shared helper functions to load the function create_wd()
-# source(here::here('shared_functions.R'))
-# parent_wd <- getwd()
-# Set the working directory
-# models_wd = "./models"
-# Create models_wd if it doesn't exist
-# create_wd(models_wd)
-# setwd(models_wd)
-
+# Source the helper functions script to load custom functions and load libraries
+# if (!require("pacman")) install.packages("pacman")
+# pacman::p_load(here)
+setwd('..')
+source(here::here('shared_functions.R'))
 
 # Source the helper functions script to load custom functions and load libraries
-source('model_functions.R')
+models_wd="./models"; create_wd(models_wd)
+source('./models/model_functions.R')
 print(sessionInfo())
 
-# setwd(parent_wd)
+print("functions loaded")
+
 
 
 ######################## LOAD EXTERNAL DATASETS ########################
 
 # Set the working directory to load the dataset
-path_final_other ="./stockdata/final/other_versions/";setwd(path_final_other)
+if (indices==FALSE){
+  path_final_other ="./stockdata/final/other_versions/"
+} else {
+  path_final_other ="./robustness_checks/global_risk/final/other_versions/"
+}
+setwd(path_final_other)
 
 # Load dataset with volatility measures, attention and sentiment variables
-filename=paste("hf_market_",vers,"_2.RData",sep='')
+if (indices==FALSE){
+  filename=paste("hf_market_",vers,"_2.RData",sep='')
+} else {
+  filename=paste("indices_full_",vers,"_2.RData",sep='')  
+}
 stocks.market <- loadRData(filename)
 gc()
-print(paste("loaded file",filename))
+print(paste("loaded file",filename,"from directory", path_final_other))
 
 # Return to the original working directory
 setwd(my_wd)
 
+
 # Load csv with a description of variables
+setwd("./dataset")
 nams = read.csv(file='nams.csv')
 nams = data.frame(nams)
+# Return to the original working directory
+setwd(my_wd)
 
 
 ######################## DEFINE PARAMETERS ########################
@@ -69,8 +81,8 @@ addto = FALSE
 K = 5
 # COMPLEXITY PARAMETER IS
 cx = 4
-# WHAT TYPE OF ESTIMATION TO USE?
-estim.type = 'WLS3'
+# WHAT TYPE OF ESTIMATION TO USE? Options: 'WLS1', 'WLS3', 'MSE'
+estim.type = estim.type       # argument from command line
 # WHAT IS THE ESTIMATION WINDOW SIZE?
 W = 1000
 # LOSS TO OPTIMIZE
@@ -114,9 +126,16 @@ bench=as.formula(paste0(dep,"~V.L1.Log+V.L5.Log+V.L22.Log"))
 
 
 # Define the download directory
-download_wd=paste("./files/hf_market_",vers,"_H",depnum,sep="")
+setwd("./models")
 # Create the download directory if it doesn't exist
 create_wd("./files")
+if (indices==FALSE){
+  download_wd=paste("./files/hf_market_",vers,"_H",depnum,sep="")
+} else {
+  download_wd=paste("./files/indices_full_",vers,"_H",depnum,sep="")
+}
+if (estim.type!="WLS3") download_wd=paste(download_wd,"_",estim.type,sep="")
+
 create_wd(download_wd)
 
 
@@ -135,7 +154,14 @@ DR = stocks.market[[i]]; rm(stocks.market);gc()
 store = list()
 
 # Estimate and forecast with all models or quit if we do not have enough days for this stock
-if (dim(DR)[1] < 2501){
+# Ignore this rule, if indices=="T"; set L to a smaller number, so that the exception is never raised
+if (indices==TRUE){
+  L=1000
+} else {
+  L=2500
+}  
+
+if (dim(DR)[1] < (L+1)){
   print("Our dataset for this stock is too small.")
   break
 } else {
@@ -190,7 +216,7 @@ if (dim(DR)[1] < 2501){
                             estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,bench=bench,
                             cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA,
                             alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
-
+  
   print("attention complete")
   print(Sys.time()-A)
   
@@ -200,7 +226,7 @@ if (dim(DR)[1] < 2501){
     for (st in 1:length(sent_types)){
       A = Sys.time()
       print(paste(sent_cats[[sc]],sent_types[st],"start"))
-
+      
       store <- event_estimation(store, DR,dep = dep,category=sent_cats[[sc]],senttype=sent_types[st],fixing = c('V.L1.Log','V.L5.Log'),
                                 estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,bench=bench,
                                 cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA, 
@@ -216,7 +242,7 @@ if (dim(DR)[1] < 2501){
                             estim.type,LogTrans,formats= NULL,K,addto,W,nc,orderapprox,bench=bench,
                             cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA, 
                             alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
-
+  
   print("superbench complete")
   print(Sys.time()-A)
   

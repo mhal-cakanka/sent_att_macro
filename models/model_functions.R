@@ -7,7 +7,7 @@ pacman::p_load(zoo,foreach,doParallel,speedglm,useful,cluster,glmnetUtils,ranger
 
 
 # Save working directory
-my_wd <- getwd()
+# my_wd <- getwd()
 
 
 # Function that transforms the attention/sentiment variables
@@ -190,16 +190,18 @@ estimate = function(estim,predi,estim.type,LogTrans=TRUE,model.estim=specs[[1]],
     res = (y - X %*% cbind(pm))
   }
   
-  if (estim.type == 'WLS1') {
+  if (estim.type=='WLS1') {
     # Setup weights
-    y[y==0] = min(y!=0)
+    # replace 0 or negative values with minimum non-zero value
+    y[y<=0] = min(y[y>0])
+    # y[y==0] = min(y!=0)
     wls1 = as.numeric(1/y)
     pm = coefficients(speedglm::speedlm.wfit(y=y,X=X,w=wls1))
     # Residuals-squared
     res = (y - X %*% cbind(pm))
   }
 
-  if (estim.type == 'WLS3') {
+  if (estim.type=='WLS3') {
     # Number of observations in the estimation window
     TE = dim(y)[1]
     # Setup weights
@@ -274,7 +276,7 @@ estim.bench = function(DR,dep,indep,fixing,estim.type,LogTrans,formats,K,addto,W
   }
   
   # Overall number of observations
-  TT = dim(DR)[1]
+  TTT = dim(DR)[1]
   
   
   # TRANSFORM ATTENTION/SENTIMENT VARIABLES
@@ -295,7 +297,7 @@ estim.bench = function(DR,dep,indep,fixing,estim.type,LogTrans,formats,K,addto,W
   A = Sys.time()
   cl <- makeCluster(nc)
   registerDoParallel(cl)
-  TMP = foreach::foreach (s = (W+1):TT,.export=c('estimate'), .packages = 'speedglm') %dopar% {
+  TMP = foreach::foreach (s = (W+1):TTT,.export=c('estimate'), .packages = 'speedglm') %dopar% {
     
     # Select dataset
     DT = DD[(s-W):s,]
@@ -336,7 +338,7 @@ estim.bench = function(DR,dep,indep,fixing,estim.type,LogTrans,formats,K,addto,W
   outsample = matrix(NA,nrow=length(TMP),ncol=2)
   for (i in 1:length(TMP)) outsample[i,] = t(TMP[[i]])
   
-  outsample = data.frame(DR$Date[(W+1):TT],outsample)
+  outsample = data.frame(DR$Date[(W+1):TTT],outsample)
   
   return(outsample)
 }
@@ -812,8 +814,11 @@ regul = function(spec = spec, DT = DR, W = W, CS = CS, alphas = c(1.0), reestim 
           
           # Weights
           if (estim.type=='WLS1') {
+            # Setup weights
+            # calculate weights as 1/Y, where Y is RV, but replace 0 with the minimum non-zero value
             yd = Estim.DT[,all.vars(spec)[1]]
-            yd[yd==0] = min(yd[yd!=0])
+            # yd[yd==0] = min(yd[yd!=0])
+            yd[yd<=0] = min(yd[yd>0])
             wls= 1/yd
           }
           if (estim.type=='WLS3') {
@@ -839,7 +844,8 @@ regul = function(spec = spec, DT = DR, W = W, CS = CS, alphas = c(1.0), reestim 
             # 1) Estimate RIDGE model
             model = glmnetUtils:::glmnet.formula(formula=spec, data=Estim.DT, alpha = 0, lambda=LMBD[L])
             # 2) Extract weights
-            wgt <- 1/abs(coefficients(model))
+            # wgt <- 1/abs(coefficients(model))
+            wgt <- 1/abs(coefficients(model)[-1])
             # 3) Estimate LASSO with RIDGE weights
             model = glmnetUtils:::glmnet.formula(formula=spec, data=Estim.DT, alpha = 1, lambda=LMBD[N], penalty.factor = wgt)
           }
@@ -1095,7 +1101,8 @@ rf = function(spec = spec, DT = DR, W = W, CS = CS, num.trees = c(100), mtry = c
           # Weights
           if (estim.type=='WLS1') {
             yd = Estim.DT[,all.vars(spec)[1]]
-            yd[yd==0] = min(yd[yd!=0])
+            # yd[yd==0] = min(yd[yd!=0])
+            yd[yd<=0] = min(yd[yd>0])
             wls= 1/yd
           }
           if (estim.type=='WLS3') {
