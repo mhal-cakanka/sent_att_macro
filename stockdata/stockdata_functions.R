@@ -176,6 +176,7 @@ PS.subsample <- function(subs,dat){
     rets[,offs+1] <- log(fives[-1,offs+1]/fives[-nrow(fives),offs+1])
     
   }
+  rownames(rets)<-datmins$Datetime_0[-1]
   
   return(rets)
 }
@@ -247,6 +248,117 @@ rl_fun <- function(rets){
   return(rlev)
 }
 
+# Bollerslev and Todorov jump tail estimation
+CV_estimator_vectorized <- function(intra_return, alpha, alpha_multiplier) {
+  abs_ret <- abs(intra_return)
+  thresh <- alpha * alpha_multiplier
+  cv <- ifelse(abs_ret <= thresh, intra_return^2, 0)
+  jv <- ifelse(abs_ret > thresh, intra_return^2, 0)
+  rjv <- ifelse(intra_return > thresh, intra_return^2, 0)
+  ljv <- ifelse(intra_return < -thresh, intra_return^2, 0)
+  data.frame(cv, jv, rjv, ljv)
+}
+
+get_alpha_hat <- function(intra_returns_dt) {
+  intra_returns_dt <- intra_returns_dt[order(intra_returns_dt$Date_time), ]
+  intra_returns_dt$rets_product <- abs(intra_returns_dt$ret) * abs(dplyr::lag(intra_returns_dt$ret, 1))
+  res_df <- intra_returns_dt %>%
+    group_by(date) %>%
+    summarize(rets_product = sum(rets_product, na.rm = TRUE), .groups = "drop")
+  original_dates <- unique(intra_returns_dt$date)
+  res_df <- right_join(res_df, data.frame(date = original_dates), by = "date")
+  alpha_hat <- sqrt(sum(res_df$rets_product, na.rm = TRUE) / length(res_df$rets_product)) * (pi/2)^(1/2) * 3
+  return(alpha_hat)
+}
+
+NOI_i <- function(subset_tmp, alpha_hat, alpha_multiplier, time_id) {
+  numerator <- sum(abs(subset_tmp$ret) <= alpha_hat * alpha_multiplier, na.rm = TRUE)
+  tmp <- subset_tmp[subset_tmp$time_id == time_id, ]
+  denominator <- sum(abs(tmp$ret) <= alpha_hat * alpha_multiplier, na.rm = TRUE)
+  if (denominator == 0) return(0)
+  return(numerator / denominator)
+}
+
+TOD_i <- function(subset_tmp, alpha_hat, alpha_multiplier, time_id) {
+  tmp <- subset_tmp[subset_tmp$time_id == time_id, ]
+  numerator <- sum(ifelse(abs(tmp$ret) <= alpha_hat * alpha_multiplier, tmp$ret^2, 0), na.rm = TRUE)
+  denominator <- sum(subset_tmp$ret^2, na.rm = TRUE)
+  return(numerator / denominator)
+}
+
+tail_jumps <- function(df, omega = 0.49, W=501) {
+  # Ensure correct types
+  df$Date_time <- as.POSIXct(df$Date_time, tz = "UTC")
+  df$time <- format(as.POSIXct(df$Date_time), "%H:%M:%S")
+  df$time <- as.character(df$time)
+  df$date <- as.Date(df$Date_time)
+  df$ret <- as.numeric(df$ret)
+  df$day_id <- as.integer(as.factor(df$date))
+  df$time_id <- as.integer(as.factor(df$time))
+  
+  intra_returns_dt <- df
+  
+  # Calculate alpha_hat
+  subset_tmp <- intra_returns_dt[intra_returns_dt$day_id < W, ]
+  alpha_hat <- get_alpha_hat(subset_tmp)
+  delta_n <- 1/length(unique(intra_returns_dt$time_id))
+  alpha_multiplier <- delta_n^omega
+  
+  # Calculate TOD scalars for each time_id
+  all_time_ids <- sort(unique(intra_returns_dt$time_id))
+  tods <- data.frame(time_id = all_time_ids, tod_value = NA_real_)
+  for (i in seq_along(all_time_ids)) {
+    time_id <- all_time_ids[i]
+    tods$tod_value[i] <- NOI_i(subset_tmp, alpha_hat, alpha_multiplier, time_id) *
+      TOD_i(subset_tmp, alpha_hat, alpha_multiplier, time_id)
+  }
+  
+  # Initialize alpha_dict
+  alpha_dict <- setNames(rep(alpha_hat, nrow(tods)), tods$time_id)
+  
+  intra_returns_dt$cv_values <- NA_real_
+  intra_returns_dt$jv_values <- NA_real_
+  intra_returns_dt$rjv_values <- NA_real_
+  intra_returns_dt$ljv_values <- NA_real_
+  
+  unique_days <- sort(unique(intra_returns_dt$day_id))
+  for (day in unique_days) {
+    day_mask <- intra_returns_dt$day_id == day
+    day_data <- intra_returns_dt[day_mask, ]
+    valid_mask <- day_data$time_id > 0
+    time_ids <- day_data$time_id[valid_mask]
+    alphas <- as.numeric(alpha_dict[as.character(time_ids)])
+    rets <- day_data$ret[valid_mask]
+    n <- length(rets)
+    # Vectorized estimator for the day
+    if (n > 0) {
+      results <- CV_estimator_vectorized(rets, alphas, alpha_multiplier)
+      intra_returns_dt[which(day_mask)[valid_mask], c("cv_values", "jv_values", "rjv_values", "ljv_values")] <- results
+    }
+    
+    # Update alpha_dict after each day if time_id == max exists
+    if (any(day_data$time_id == max(all_time_ids))) {
+      last_cv <- sum(intra_returns_dt$cv_values[day_mask], na.rm = TRUE)
+      for (key in as.character(tods$time_id)) {
+        tod_value <- tods$tod_value[tods$time_id == as.integer(key)]
+        alpha_dict[[key]] <- 3 * sqrt(last_cv) * tod_value
+      }
+    }
+  }
+  
+  # Aggregate by date
+  res_df <- intra_returns_dt %>%
+    group_by(date) %>%
+    summarize(
+      CV_BT = sum(cv_values, na.rm = TRUE),
+      JV_BT = sum(jv_values, na.rm = TRUE),
+      RJV_BT = sum(rjv_values, na.rm = TRUE),
+      LJV_BT = sum(ljv_values, na.rm = TRUE),
+      .groups = "drop"
+    )
+  return(res_df)
+}
+
 
 aggreg<-function(L1, nam, lags=c(1,5,22), ahead=NULL){
   
@@ -315,13 +427,19 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1,
                "PSV.L1","PSV.L5","PSV.L22","SJ.L1","SJ.L5","SJ.L22",
                # Realized skewness, kurtosis, leverage
                "RSK.L1","RSK.L5","RSK.L22","RK.L1","RK.L5","RK.L22","RLEV.L1","RLEV.L5","RLEV.L22",
+               # Bollerslev Todorov jump tail estimation (contunous, jumps,right and left tail jumps)
+               "BT.CV.L1","BT.CV.L5", "BT.CV.L22","BT.JV.L1", "BT.JV.L5", "BT.JV.L22",
+               "BT.RJV.L1", "BT.RJV.L5", "BT.RJV.L22","BT.LJV.L1", "BT.LJV.L5", "BT.LJV.L22",
                # Log-transformed variables
                "VI.L1.Log","VI.L5.Log","VI.L22.Log","VI.H1.Log","VI.H5.Log","VI.H22.Log",
                "V.L1.Log","V.L5.Log","V.L22.Log","V.H1.Log","V.H5.Log","V.H22.Log",
                "VON.L1.Log","VON.L5.Log","VON.L22.Log","VON.H1.Log","VON.H5.Log","VON.H22.Log",
                "JC.L1.Log","JC.L5.Log","JC.L22.Log","CC.L1.Log","CC.L5.Log","CC.L22.Log","NSV.L1.Log","NSV.L5.Log","NSV.L22.Log",
                "PSV.L1.Log","PSV.L5.Log","PSV.L22.Log","SJ.L1.Log","SJ.L5.Log","SJ.L22.Log",
-               "RSK.L1.Log","RSK.L5.Log","RSK.L22.Log","RK.L1.Log","RK.L5.Log","RK.L22.Log","RLEV.L1.Log","RLEV.L5.Log","RLEV.L22.Log")
+               "RSK.L1.Log","RSK.L5.Log","RSK.L22.Log","RK.L1.Log","RK.L5.Log","RK.L22.Log","RLEV.L1.Log","RLEV.L5.Log","RLEV.L22.Log",
+               "BT.CV.L1.Log","BT.CV.L5.Log", "BT.CV.L22.Log","BT.JV.L1.Log", "BT.JV.L5.Log", "BT.JV.L22.Log",
+               "BT.RJV.L1.Log", "BT.RJV.L5.Log", "BT.RJV.L22.Log","BT.LJV.L1.Log", "BT.LJV.L5.Log", "BT.LJV.L22.Log"
+               )
     
     # Data frame for daily data
     df <- data.frame(matrix(ncol=length(colnms),nrow=N, dimnames=list(NULL,colnms)))
@@ -352,14 +470,25 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1,
       # Get all minute returns for day DTS[d] --> sum of squares
       if (sampling == 1){
         rets<-subs$ret
+        names(rets)<-subs$Date_time
         rv <- sum(subs$ret^2, na.rm=T)
       }
       
       # An option for Patton Sheppard 5 min sub-sampling
       if (sampling == 5){
         rets5<-PS.subsample(subs = subs, dat=DTS[d]) # grid of returns 
-        rets<-rowMeans(rets5);print(length(rets))
+        rets<-rowMeans(rets5,na.rm=T)
         rv = mean(colSums(rets5^2, na.rm=T))
+      }
+      
+      # Save returns into one dataframe, we will need it later for jump tail estimation
+      # dataframe of returns, first column is datetime form rownames, second column is the rowMeans
+      rets_df<-data.frame(Date_time=names(rets), ret = as.numeric(rets))
+      rownames(rets_df)<-NULL
+      if (d==1){
+        allrets=rets_df
+      } else {
+        allrets=rbind(allrets,rets_df)
       }
       
       # Continuous and jump components with jump test
@@ -370,7 +499,6 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1,
       
       # Realized skewness and kurtosis, realized leverage
       rskew=rskew_fun(rets,rv); rkurt=rkurt_fun(rets,rv); rlev=rl_fun(rets)
-      
       
       # Assign to df
       df[d, c("VI.L1", "JC.L1", "CC.L1", "NSV.L1", "PSV.L1", "SJ.L1",
@@ -392,8 +520,14 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1,
     # Roger and Satchel intraday estimator
     df$RS = h*(h-c) + l*(l-c)
     
+    
+    # Bollerslev and Todorov (2011) jump tail estimation
+    bt_res <- tail_jumps(allrets, omega = 0.49)
+    df[, c("BT.CV.L1", "BT.JV.L1", "BT.RJV.L1", "BT.LJV.L1")] <- bt_res[match(df$Date, bt_res$date), c("CV_BT", "JV_BT", "RJV_BT", "LJV_BT")]
+    
     # Annualized
     annualized_cols =c("VI.L1","JC.L1","CC.L1","NSV.L1","PSV.L1","SJ.L1",
+                       "BT.CV.L1", "BT.JV.L1", "BT.RJV.L1", "BT.LJV.L1",
                        "RSK.L1", "RK.L1", "RLEV.L1", "PK","GK","RS")
     df[,annualized_cols] <- df[,annualized_cols]*100^2 * 252
     
@@ -401,7 +535,8 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1,
     ldf<-aggreg(L1=df$VI.L1, nam="VI", lags=c(1,5,22), ahead=c(1,5,22))
     df[,colnames(ldf)]<-ldf
     # df <- cbind(df, ldf)
-    for (var in c("JC.L1", "CC.L1", "NSV.L1", "PSV.L1", "SJ.L1", "RSK.L1", "RK.L1", "RLEV.L1")) {
+    for (var in c("JC.L1", "CC.L1", "NSV.L1", "PSV.L1", "SJ.L1", "RSK.L1", "RK.L1", "RLEV.L1",
+                  "BT.CV.L1", "BT.JV.L1", "BT.RJV.L1", "BT.LJV.L1")) {
       ldf <- aggreg(L1 = df[[var]], nam = gsub("\\.L1", "", var), lags = c(1, 5, 22), ahead = NULL)
       # df <- cbind(df, ldf)
       df[,colnames(ldf)]<-ldf
@@ -505,6 +640,8 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1,
              "VON.L1","VON.L5","VON.L22","VON.H1","VON.H5","VON.H22","JC.L1","JC.L5","JC.L22",
              "CC.L1","CC.L5","CC.L22","NSV.L1","NSV.L5","NSV.L22","PSV.L1","PSV.L5","PSV.L22",
              "SJ.L1","SJ.L5","SJ.L22",
+             "BT.CV.L1", "BT.CV.L5", "BT.CV.L22","BT.JV.L1", "BT.JV.L5", "BT.JV.L22",
+             "BT.RJV.L1", "BT.RJV.L5", "BT.RJV.L22","BT.LJV.L1", "BT.LJV.L5", "BT.LJV.L22",
              "RSK.L1","RSK.L5","RSK.L22","RK.L1","RK.L5","RK.L22","RLEV.L1","RLEV.L5","RLEV.L22"
     )
     
