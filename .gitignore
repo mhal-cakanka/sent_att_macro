@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+.RDataTmp
 
 # Ignore folder "bloomberg/partial results"
 bloomberg/partial results/
