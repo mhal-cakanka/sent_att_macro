@@ -150,8 +150,34 @@ print(paste("starting stock number", i, "called", res.nms))
 # Select dataset for stock no.i
 DR = stocks.market[[i]]; rm(stocks.market);gc()
 
-# Empty list for storing results
+
+# -----------------------
+# Attempt to load existing results for this stock (if present).
+# If found, use that 'store' as the starting point; we will only add missing model entries.
+# -----------------------
 store = list()
+possible_paths <- c(file.path(download_wd, res.nms), paste0(file.path(download_wd, res.nms), ".rds"))
+loaded_any <- FALSE
+for (p in possible_paths) {
+  if (file.exists(p)) {
+    tryCatch({
+      tmp <- readRDS(p)
+      if (is.list(tmp)) {
+        store <- tmp
+        loaded_any <- TRUE
+        message(paste("Loaded existing results from", p))
+        break
+      } else {
+        message(paste("Found file", p, "but it is not a list; ignoring."))
+      }
+    }, error = function(e) {
+      message(paste("Error loading", p, ":", e$message))
+    })
+  }
+}
+if (!loaded_any) message("No existing results file found for this stock; starting with empty store.")
+
+
 
 # Estimate and forecast with all models or quit if we do not have enough days for this stock
 # Ignore this rule, if indices=="T"; set L to a smaller number, so that the exception is never raised
@@ -173,8 +199,15 @@ if (dim(DR)[1] < (L+1)){
   
   # GENERAL ATTENTION
   # Models: HAR-A
-  store <- general_estimation(store, DR,dep,category='att',senttype=NULL,fixing,
-                              estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,nams)
+  # Only run if not already stored
+  expected_name <- make_gen_name(categories = c('att'), senttype = NULL)
+  if (!(expected_name %in% names(store))) {
+    message(paste("Computing general attention models (will be saved under:", expected_name, ")"))
+    store <- general_estimation(store, DR,dep,category='att',senttype=NULL,fixing,
+                                estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,nams)
+  } else {
+    message(paste("Skipping general attention models - found existing entry:", expected_name))
+  }
   
   # GENERAL POSITIVE AND NEGATIVE SENTIMENT
   # Models: HAR-S
@@ -191,15 +224,29 @@ if (dim(DR)[1] < (L+1)){
   # Loop over selected sentiment categories and methods
   for (sc in 1:length(sent_cats)){
     for (st in 1:length(sent_types)){
-      store <- general_estimation(store, DR,dep,category=sent_cats[[sc]],senttype=sent_types[st],fixing,
-                                  estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,nams)
+      # compute expected name the same way general_estimation will do
+      expected_name <- make_gen_name(categories = sent_cats[[sc]], senttype = sent_types[st])
+      if (!(expected_name %in% names(store))) {
+        message(paste("Computing sentiment models for", paste(sent_cats[[sc]], collapse = ","), "using", sent_types[st],
+                      "(will be saved under:", expected_name, ")"))
+        store <- general_estimation(store, DR,dep,category=sent_cats[[sc]],senttype=sent_types[st],fixing,
+                                    estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,nams)
+      } else {
+        message(paste("Skipping sentiment models - found existing entry:", expected_name))
+      }
     }
   }
   
   # MODEL WITH ALL DUMMIES X V.L1.Log
   # Models: HAR-M
-  store <- general_estimation(store, DR,dep,category='dummy',senttype=NULL,fixing,
-                              estim.type,LogTrans,formats=NULL,K,addto,W,nc,orderapprox,nams, IA=T)
+  expected_name <- make_gen_name(categories = c('dummy'), senttype = NULL)
+  if (!(expected_name %in% names(store))) {
+    message(paste("Computing dummy interaction models (will be saved under:", expected_name, ")"))
+    store <- general_estimation(store, DR,dep,category='dummy',senttype=NULL,fixing,
+                                estim.type,LogTrans,formats=NULL,K,addto,W,nc,orderapprox,nams, IA=T)
+  } else {
+    message(paste("Skipping dummy interaction models - found existing entry:", expected_name))
+  }
   
   print("general models complete")
   print(Sys.time()-A)
@@ -211,42 +258,111 @@ if (dim(DR)[1] < (L+1)){
   
   # GENERAL + EVENT SPECIFIC ATTENTION
   # Models: CSR-A, ALA-A, RF-A
-  A = Sys.time()
-  store <- event_estimation(store, DR,dep = dep,category="att",senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
-                            estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,bench=bench,
-                            cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA,
-                            alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
-  
-  print("attention complete")
-  print(Sys.time()-A)
+  expected_name <- make_event_name(categories = c('att'), senttype = NULL)
+  if (!(expected_name %in% names(store))) {
+    message(paste("Computing event-attention models (will be saved under:", expected_name, ")"))
+    A = Sys.time()
+    store <- event_estimation(store, DR,dep = dep,category="att",senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
+                              estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,bench=bench,
+                              cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA,
+                              alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
+    print("attention complete")
+    print(Sys.time()-A)
+  } else {
+    message(paste("Skipping event-attention models - found existing entry:", expected_name))
+  }
   
   # GENERAL + EVENT SPECIFIC SENTIMENT
   # Models: CSR-S, ALA-S, RF-S
   for (sc in 1:length(sent_cats)){
     for (st in 1:length(sent_types)){
-      A = Sys.time()
-      print(paste(sent_cats[[sc]],sent_types[st],"start"))
-      
-      store <- event_estimation(store, DR,dep = dep,category=sent_cats[[sc]],senttype=sent_types[st],fixing = c('V.L1.Log','V.L5.Log'),
-                                estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,bench=bench,
-                                cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA, 
-                                alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
-      print(paste(sent_cats[[sc]],sent_types[st],"complete"))
-      print(Sys.time()-A)
+      expected_name <- make_event_name(categories = sent_cats[[sc]], senttype = sent_types[st])
+      if (!(expected_name %in% names(store))) {
+        A = Sys.time()
+        print(paste(sent_cats[[sc]],sent_types[st],"start"))
+        
+        store <- event_estimation(store, DR,dep = dep,category=sent_cats[[sc]],senttype=sent_types[st],fixing = c('V.L1.Log','V.L5.Log'),
+                                  estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,bench=bench,
+                                  cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA, 
+                                  alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
+        print(paste(sent_cats[[sc]],sent_types[st],"complete"))
+        print(Sys.time()-A)
+      } else {
+        message(paste("Skipping event-sentiment models - found existing entry:", expected_name))
+      }
     }
   }
   
-  # HAR+SUPER BENCHMARK=HAR-CSLR 
-  A = Sys.time()
-  store <- event_estimation(store, DR,dep = dep,category='superbench',senttype=NULL,fixing = NULL,
-                            estim.type,LogTrans,formats= NULL,K,addto,W,nc,orderapprox,bench=bench,
-                            cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA, 
-                            alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
   
-  print("superbench complete")
-  print(Sys.time()-A)
+  # Additional bechmark models
+  # HAR+SUPER BENCHMARK=HAR-CSLR 
+  expected_name <- make_event_name(categories = c('superbench'), senttype = NULL)
+  if (!(expected_name %in% names(store))) {
+    A = Sys.time()
+    store <- event_estimation(store, DR,dep = dep,category='superbench',senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
+                              estim.type,LogTrans,formats= NULL,K,addto,W,nc,orderapprox,bench=bench,
+                              cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA, 
+                              alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
+    
+    print("superbench complete")
+    print(Sys.time()-A)
+  } else {
+    message(paste("Skipping superbench event models - found existing entry:", expected_name))
+  }
+  
+  
+  # HAR+SUPER BENCHMARK=HAR-CSLR-FULL with crosssectional RV over all stocks
+  expected_name <- make_event_name(categories = c('superbench_full'), senttype = NULL)
+  if (!(expected_name %in% names(store))) {
+    message(paste("Computing superbench full models (will be saved under:", expected_name, ")"))
+    A = Sys.time()
+    store <- event_estimation(store, DR,dep = dep,category='superbench_full',senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
+                              estim.type,LogTrans,formats= NULL,K,addto,W,nc,orderapprox,bench=bench,
+                              cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA, 
+                              alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
+    
+    print("superbench full complete")
+    print(Sys.time()-A)
+  } else {
+    message(paste("Skipping superbench full models - found existing entry:", expected_name))
+  }
+  
+  
+  # HAR+SUPER BENCHMARK=HAR-CSLR-RV with S&P500 RV instead
+  expected_name <- make_event_name(categories = c('superbench_rv'), senttype = NULL)
+  if (!(expected_name %in% names(store))) {
+    message(paste("Computing superbench full with S&P500 models (will be saved under:", expected_name, ")"))
+    A = Sys.time()
+    store <- event_estimation(store, DR,dep = dep,category='superbench_rv',senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
+                              estim.type,LogTrans,formats= NULL,K,addto,W,nc,orderapprox,bench=bench,
+                              cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA,
+                              alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
+    print("superbench full with S&P500 complete")
+    print(Sys.time()-A)
+    
+  } else {
+    message(paste("Skipping superbench full with S&P500 models - found existing entry:", expected_name))
+  }
+
+  
+  # HAR-VIX BENCHMARK=HAR with only VIX as additional variable
+  expected_name <- make_gen_name(categories = c('vix'), senttype = NULL)
+  if (!(expected_name %in% names(store))) {
+    message(paste("Computing vix benchmark models (will be saved under:", expected_name, ")"))
+    A = Sys.time()
+    store <- general_estimation(store, DR,dep,category='vix',senttype=NULL,fixing,
+                                estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,nams)
+    print("vix bench complete")
+    print(Sys.time()-A)
+    
+  } else {
+    message(paste("Skipping vix benchmark models - found existing entry:", expected_name))
+  }
+  
+
   
   setwd(download_wd)
+  # Save merged/updated store (this will overwrite the file with the updated store)
   saveRDS(store,file=res.nms)
   setwd(my_wd)
 }
@@ -255,6 +371,3 @@ if (dim(DR)[1] < (L+1)){
 # End
 Sys.time()-B
 print(paste("finished stock number", i, "called", res.nms))
-
-
-

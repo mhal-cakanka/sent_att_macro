@@ -1,10 +1,18 @@
 # HELPER FUNCTIONS FOR SCRIPT "model_flow.R"
 
 # Load necessary libraries
-if (!require("pacman")) install.packages("pacman")
+# if (!require("pacman")) install.packages("pacman")
 # Check whether these libraries are installed, install if not and load all of them
-pacman::p_load(zoo,foreach,doParallel,speedglm,useful,cluster,glmnetUtils,ranger,readr)
-
+# pacman::p_load(zoo,foreach,doParallel,speedglm,useful,cluster,glmnetUtils,ranger,readr)
+library(zoo)
+library(foreach)
+library(doParallel)
+library(speedglm)
+library(useful)
+library(cluster)
+library(glmnetUtils)
+library(ranger)
+library(readr)
 
 # Save working directory
 # my_wd <- getwd()
@@ -1293,6 +1301,10 @@ general_estimation <- function(store, DR,dep = 'V.H1.Log',category="att",senttyp
       if (!is.null(IA)) DR = InterAct(DR,cross=c('V.L1.Log'),explanat=indep)
       indep = paste(indep,1,sep = '.')
     }
+    
+    if (category == "vix"){
+      indep = as.character(nams$Var[which(nams$Category == category)])
+    }
 
     # Prepare name for the result
     cat.name = paste('gen', substr(category , 1, 3), sep = ".")
@@ -1378,6 +1390,31 @@ event_estimation <- function(store, DR,dep = 'V.H1.Log',category="att",senttype=
       cat.name = category
     } 
     
+    if (category == 'superbench_full'){
+      att = c('JC.L1.Log','JC.L5.Log','JC.L22.Log','CC.L1.Log','CC.L5.Log','CC.L22.Log',
+              'NSV.L1.Log','NSV.L5.Log','NSV.L22.Log','SJ.L1.Log','SJ.L5.Log','SJ.L22.Log',
+              "RSK.L1.Log", "RSK.L5.Log", "RSK.L22.Log", "RK.L1.Log", "RK.L5.Log", "RK.L22.Log",
+              "RLEV.L1.Log", "RLEV.L5.Log", "RLEV.L22.Log",
+              "BT.RJV.L1.Log", "BT.RJV.L5.Log", "BT.RJV.L22.Log",
+              "BT.LJV.L1.Log", "BT.LJV.L5.Log", "BT.LJV.L22.Log",
+              "CRV.V.L1.Log", "CRV.V.L5.Log", "CRV.V.L22.Log"
+              )
+      cat.name = category
+    }
+    
+    
+    if (category == 'superbench_rv'){
+      att = c('JC.L1.Log','JC.L5.Log','JC.L22.Log','CC.L1.Log','CC.L5.Log','CC.L22.Log',
+              'NSV.L1.Log','NSV.L5.Log','NSV.L22.Log','SJ.L1.Log','SJ.L5.Log','SJ.L22.Log',
+              "RSK.L1.Log", "RSK.L5.Log", "RSK.L22.Log", "RK.L1.Log", "RK.L5.Log", "RK.L22.Log",
+              "RLEV.L1.Log", "RLEV.L5.Log", "RLEV.L22.Log",
+              "BT.RJV.L1.Log", "BT.RJV.L5.Log", "BT.RJV.L22.Log",
+              "BT.LJV.L1.Log", "BT.LJV.L5.Log", "BT.LJV.L22.Log",
+              "SP500_V.L1.Log", "SP500_V.L5.Log", "SP500_V.L22.Log"
+      )
+      cat.name = category
+    }
+    
     
     # Store names of selected variables and categories
     if (lc==1){
@@ -1425,6 +1462,7 @@ event_estimation <- function(store, DR,dep = 'V.H1.Log',category="att",senttype=
   # CSLR - Complete subset linear regression models
   # LIST OF SPECIFICATIONS
   specs = specs.create(dep=dep,fixing=fixing,indep=indep,cx=cx)
+  print(length(specs))
   print("csr specs done")
   # ROLLING CSLR
   pred = ROLL.CSLR(DR=DRT,specs=specs,bench=bench,estim.type=estim.type,LogTrans=LogTrans,W=W,nc=nc,orderapprox)
@@ -1439,13 +1477,12 @@ event_estimation <- function(store, DR,dep = 'V.H1.Log',category="att",senttype=
   print('CSR DONE')
   print(Sys.time()-D)
   
-  # If category is 'superbench', we stop here and store the results
-  if (category == "superbench"){
-  
-	# SYNCHRONIZE FORECASTS
-	gc(); closeAllConnections()
-	store[[all.cat.name]] = pred.cslr
-	print("all stored")
+  # If category includes the word 'superbench', we stop here and store the results
+  if (str_detect(category, "superbench")){
+  	# SYNCHRONIZE FORECASTS
+  	gc(); closeAllConnections()
+  	store[[all.cat.name]] = pred.cslr
+  	print("all stored")
   
 	# For other categories we continue with LASSO and RF
   } else {
@@ -1529,4 +1566,44 @@ InterAct = function(DT,cross=2,explanat=c(17:197)) {
 unregister_dopar <- function() {
   env <- foreach:::.foreachGlobals
   rm(list=ls(name=env), pos=env)
+}
+
+
+
+# -----------------------
+# Helper utilities to detect expected model names (match logic in model_functions.R)
+# -----------------------
+make_gen_name <- function(categories, senttype = NULL) {
+  # categories: character vector of categories (same as passed to general_estimation)
+  all.cat.name <- NULL
+  for (category in categories) {
+    if (category == 'att') {
+      cat.name <- paste('gen', substr(category, 1, 3), sep='.')
+    } else if (category == 'positive emotions' || category == 'negative emotions') {
+      # Senttype expected not NULL for sentiment categories
+      if (is.null(senttype)) stop("senttype required for sentiment categories")
+      cat.name <- paste('gen', substr(category, 1, 3), substr(senttype,1,3), sep='.')
+    } else {
+      cat.name <- paste('gen', substr(category, 1, 3), sep='.')
+    }
+    if (is.null(all.cat.name)) all.cat.name <- cat.name else all.cat.name <- paste(all.cat.name, cat.name, sep='.')
+  }
+  return(all.cat.name)
+}
+
+make_event_name <- function(categories, senttype = NULL) {
+  # categories: character vector of categories (same as passed to event_estimation)
+  all.cat.name <- NULL
+  for (category in categories) {
+    if (str_detect(category, "superbench")){
+      cat.name <- category
+    } else if (category == 'positive emotions' || category == 'negative emotions') {
+      if (is.null(senttype)) stop("senttype required for sentiment categories")
+      cat.name <- paste(substr(category,1,3), substr(senttype,1,3), sep='.')
+    } else {
+      cat.name <- substr(category,1,3)
+    }
+    if (is.null(all.cat.name)) all.cat.name <- cat.name else all.cat.name <- paste(all.cat.name, cat.name, sep='.')
+  }
+  return(all.cat.name)
 }
