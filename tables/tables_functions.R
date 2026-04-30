@@ -3,7 +3,7 @@
 # Load necessary libraries
 if (!require("pacman")) install.packages("pacman")
 # Check whether these libraries are installed, install if not and load all of them
-pacman::p_load(moments,xlsx,lmtest,sandwich,readr,rvest,stats)
+pacman::p_load(moments,xlsx,lmtest,sandwich,readr,rvest,stats,abind)
 
 
 # A function to save tables in different formats
@@ -191,7 +191,8 @@ table_insample = function(stocks.market,specs,L = 2500,formats = c('Log')) {
   # Remove the dependent variable from the list of variables
   variables = unique(variables)[-1]
   # Do not transform RV variables (they start with "V") and bloomberg dummies (they start with "b")
-  skipp=c(grep("^[b].*", variables),grep("^[V].*", variables))
+  skipp=c(grep("^[b].*", variables),grep("^[e].*", variables),grep("^[u].*", variables),
+          grep("^[V].*", variables))
   totrans=c(variables[-skipp])
   variables = c('Intercept',variables,'R2','aR2')
   # variables = c('Intercept',variables,'R2','aR2','max VIF','DW','DW pval', 'El','White test','BP')
@@ -251,6 +252,8 @@ table_insample = function(stocks.market,specs,L = 2500,formats = c('Log')) {
   }
   tbl[tbl==0]<-NA
   tbl[grep("^[b].*", tbl$names),1]=paste(tbl[grep("^[b].*", tbl$names),1],tbl[2,1],sep="*")
+  tbl[grep("^[e].*", tbl$names),1]=paste(tbl[grep("^[e].*", tbl$names),1],tbl[2,1],sep="*")
+  tbl[grep("^[u].*", tbl$names),1]=paste(tbl[grep("^[u].*", tbl$names),1],tbl[2,1],sep="*")
   
   return(tbl)
 }
@@ -317,13 +320,15 @@ table_outsample = function(out,ext.rem,perc=1,quan=c("top"),selection,model_dict
 
 # Helper function for table_outsample
 loss_eval<-function(store.tbl.tmp,dt,ext.rem,perc,quan,selection,model_dict,
-                    calibri.loss="MSE",nms,depnum){
+                    calibri.loss="MSE",nms,depnum, clnum=NA){
   
-  # if (calibri.loss == "MSE") cl=1
-  # if (calibri.loss == "QLIKE") cl=2
-  # if (calibri.loss == "MAE") cl=3
-  # if (calibri.loss == "MAPE") cl=4
-  cl=1
+  if (calibri.loss == "MSE") cl=1
+  if (calibri.loss == "QLIKE") cl=2
+  if (calibri.loss == "MAE") cl=3
+  if (calibri.loss == "MAPE") cl=4
+  # cl=1
+  # If we only run this for one loss function, we can pass the cl number directly
+  if (!is.na(clnum)) cl=clnum
   
   # PREPARE A LOSS DATASET
   temp.calibri.loss = calibri.loss
@@ -462,12 +467,18 @@ get_store.tbl = function(out,ext.rem,perc=1,quan=c("top"),selection,model_dict,n
     # Select a dataset
     dt = out[[i]]
     
+    if (length(losses)==1){
+      clnum=1
+    } else {
+      clnum=NA
+    }
+    
     # Loop over losses
     for (ls in losses){
       print(ls)
       store.tbl.tmp<-loss_eval(store.tbl.tmp=store.tbl.tmp,dt=dt,ext.rem=ext.rem,
                                perc=perc,quan=quan,selection=selection,
-                               model_dict=model_dict,calibri.loss=ls,nms=nms,depnum=depnum)
+                               model_dict=model_dict,calibri.loss=ls,nms=nms,depnum=depnum, clnum=clnum)
     }
     store.tbl[,,,i] = store.tbl.tmp
     
@@ -475,6 +486,100 @@ get_store.tbl = function(out,ext.rem,perc=1,quan=c("top"),selection,model_dict,n
   
   return(store.tbl)
 }
+
+
+# Function to report out-of-sample results for a single stock/index (not averaged across multiple stocks)
+table_outsample_single = function(out, ext.rem, perc=1, quan=c("top"), selection, model_dict, nms,
+                                  losses=c("MSE","QLIKE","MAE","MAPE"), depnum) {
+  
+  # Keep only rows relevant for a single stock: Outperform HAR, Average Rank, Improvement (%)
+  tbl = data.frame(description=c('Outperform HAR','Average Rank','Improvement (%)',"Average Loss"))
+  res.out = matrix(NA, nrow=dim(tbl)[1], ncol=length(nms)-2)
+  colnames(res.out) = nms[-c(1,2)]
+  tbl = data.frame(tbl, res.out)
+  
+  # Loop over losses to create a list of results, each with the structure of tbl
+  results = list()
+  for (ls in losses) {
+    results[[ls]] <- tbl
+  }
+  rm(tbl)
+  
+  # Use get_store.tbl but for a single stock: mimic shape [losses, 1, models]
+  store.tbl <- array(NA, dim=c(length(losses), 1, length(nms)-2))
+  dimnames(store.tbl)[[1]] = losses
+  dimnames(store.tbl)[[2]] = c('AVE')
+  dimnames(store.tbl)[[3]] = nms[-c(1,2)]
+  
+  # Only one stock, so we process it directly
+  dt = out
+  
+  # Loop over losses
+  for (cl in 1:length(losses)) {
+    ls = losses[cl]
+    # PREPARE LOSS DATASET
+    temp.calibri.loss = ls
+    if (ls == "MAE") temp.calibri.loss = "MSE"
+    if (ls == "MAPE") temp.calibri.loss = "MSE"
+    if (ls == "QLIKE") temp.calibri.loss = "MSE"
+    
+    dt.loss <- loss.dt(dt=dt, selection=selection, model_dict=model_dict, calibri.loss=temp.calibri.loss, nms)
+    
+    # If we do multiple day ahead prediction, divide losses
+    if (depnum > 1) {
+      dt.loss[,-1] <- dt.loss[,-1] / depnum
+    }
+    
+    # Subset days based on RV
+    dt.loss <- process_dt(dt.loss, ext.rem, quan, perc)
+    
+    # QLIKE: avoid division by zero
+    if (ls == "QLIKE") dt.loss$rv[dt.loss$rv == 0] = 1
+    
+    # Position of models
+    idx.mod = c(1:dim(dt.loss)[2])[-which(names(dt.loss) %in% c('Date','rv'))]
+    NM = length(idx.mod)
+    
+    # Compute losses for each model
+    LS = matrix(NA, nrow=dim(dt.loss)[1], ncol=length(nms)-2)
+    colnames(LS) = nms[-c(1,2)]
+    
+    for (j in 1:NM) {
+      if (ls == "MSE") {
+        LS[,j] = (dt.loss$rv - dt.loss[,idx.mod[j]])^2
+      }
+      if (ls == "QLIKE") {
+        LS[,j] = dt.loss$rv / dt.loss[,idx.mod[j]] - log(dt.loss$rv / dt.loss[,idx.mod[j]]) - 1
+      }
+      if (ls == "MAE") {
+        LS[,j] = abs(dt.loss$rv - dt.loss[,idx.mod[j]])
+      }
+      if (ls == "MAPE") {
+        LS[,j] = abs((dt.loss$rv - dt.loss[,idx.mod[j]]) / dt.loss$rv)
+      }
+      store.tbl[cl,1,j] = mean(LS[,j], na.rm=TRUE)
+    }
+  }
+  
+  # Now build final tables with results for this single stock
+  for (cl in 1:length(losses)) {
+    ls = losses[cl]
+    # Average Loss
+    results[[ls]][4,-1]=store.tbl[cl,1,]
+    for (m in 1:NM){
+      # % Outperforming HAR (for one stock, this is either 1 or 0)
+      results[[ls]][1,m+1] <- ifelse(store.tbl[cl,1,1] - store.tbl[cl,1,m] > 0, 1, 0)
+      # Rank of the model
+      ranks = rank(store.tbl[cl,1,,drop=TRUE])
+      results[[ls]][2,m+1] = ranks[m]
+      # Improvement (%) over HAR
+      results[[ls]][3,m+1] = 100 * (store.tbl[cl,1,1] - store.tbl[cl,1,m]) / store.tbl[cl,1,1]
+    }
+  }  
+  
+  return(results)
+}
+
 
 
 ############################ Out-of-sample results / sector Table ############################
@@ -701,8 +806,19 @@ table_vimp_avg = function(out, select, loss="MSE") {
   if (loss=="QLIKE") l=2
   
   # Table
-  tbl = data.frame(variables=dimnames(out[[1]][[which(names(out[[1]]) == select)]])[[1]],
-                       AVE=0)
+  # tbl = data.frame(variables=dimnames(out[[1]][[which(names(out[[1]]) == select)]])[[1]], AVE=0)
+  # Some items in out have more variables under consideration than others, we want to find the maximum set
+  # Loop over stocks to find all variables (the largest set of dimnames)
+  for (i in 1:NI) {
+    vars = dimnames(out[[i]][[which(names(out[[i]]) == select)]])[[1]]
+    if (i ==1){
+      all.vars = vars
+    } else {
+      all.vars = unique(c(all.vars, vars))
+    }
+  }
+  tbl = data.frame(variables=all.vars, AVE=0)
+  
   
   tbl.tmp = array(0,dim=c(dim(tbl)[1],NI))
   
@@ -714,7 +830,11 @@ table_vimp_avg = function(out, select, loss="MSE") {
     
     # Extract for all variables, the ratio of the variable importance = ratio of occurance in models
     subs = dt[[which(names(dt) == select)]][,"Ratio","Memory 0.95",l,"Group 5","Kmeans",]
-    tbl.tmp[,i] = apply(subs,1,mean)
+    # tbl.tmp[,i] = apply(subs,1,mean)
+    # Assign mean values to correct variables
+    var_means = apply(subs,1,mean)
+    idx = which(tbl$variables %in% names(var_means))
+    tbl.tmp[idx,i] = var_means
     
   }
   
@@ -777,7 +897,6 @@ table_vimp <- function(selects, nams){
   
   return(final_table)
 }
-
 
 
 ws_run<-function(proxy_model_num,store.tbl,nms,calibri.loss="MSE"){
@@ -899,12 +1018,12 @@ process_mcs <- function(mcs_alpha, days, vers, depnum, current_wd, mcs_wd = "./m
   found_something <- FALSE
   
   possibleError <- tryCatch(
-    readRDS(paste("mcs", mcs_alpha, days, vers, paste0("H", depnum), sep = "_")),
+    readRDS(paste("mcs", mcs_alpha, days, vers, paste0("H", depnum), "full", sep = "_")),
     error = function(e) e
   )
   if (!inherits(possibleError, "error")) {
     # REAL WORK
-    print(paste("mcs", mcs_alpha, days, vers, paste0("H", depnum), sep = "_"))
+    print(paste("mcs", mcs_alpha, days, vers, paste0("H", depnum), "full", sep = "_"))
     mcs.all <- possibleError
     rm(possibleError); gc()
     
@@ -961,3 +1080,4 @@ process_mcs <- function(mcs_alpha, days, vers, depnum, current_wd, mcs_wd = "./m
   }
 }
 
+# Loss differentials functions
