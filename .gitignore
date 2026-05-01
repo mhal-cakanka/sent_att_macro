@@ -2,7 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
-.RDataTmp
+.RDataTmp*
 
 # Ignore folder "bloomberg/partial results"
 bloomberg/partial results/
@@ -54,3 +54,4 @@ twitter/partial results/
 # Ignore "wiki/data" and "wiki/partial results", keep rest
 wiki/data/
 wiki/partial results/
+.positai
