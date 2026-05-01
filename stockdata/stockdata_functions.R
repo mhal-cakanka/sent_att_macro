@@ -249,7 +249,7 @@ rl_fun <- function(rets){
 }
 
 # Bollerslev and Todorov jump tail estimation
-CV_estimator_vectorized <- function(intra_return, alpha, alpha_multiplier) {
+CV_estimator_vectorized_old <- function(intra_return, alpha, alpha_multiplier) {
   abs_ret <- abs(intra_return)
   thresh <- alpha * alpha_multiplier
   cv <- ifelse(abs_ret <= thresh, intra_return^2, 0)
@@ -257,6 +257,18 @@ CV_estimator_vectorized <- function(intra_return, alpha, alpha_multiplier) {
   rjv <- ifelse(intra_return > thresh, intra_return^2, 0)
   ljv <- ifelse(intra_return < -thresh, intra_return^2, 0)
   data.frame(cv, jv, rjv, ljv)
+}
+
+CV_estimator_vectorized <- function(intra_return, alpha, alpha_multiplier) {
+  r <- as.numeric(intra_return)
+  thresh <- alpha * alpha_multiplier
+  s2 <- r^2
+  # elementwise (pairwise) outcomes using logical masks coerced to numeric
+  cv  <- s2 * as.numeric(abs(r) <= thresh)
+  jv  <- s2 * as.numeric(abs(r) >  thresh)
+  rjv <- s2 * as.numeric(r >  thresh)
+  ljv <- s2 * as.numeric(r < -thresh)
+  data.frame(cv = cv, jv = jv, rjv = rjv, ljv = ljv)
 }
 
 get_alpha_hat <- function(intra_returns_dt) {
@@ -286,17 +298,17 @@ TOD_i <- function(subset_tmp, alpha_hat, alpha_multiplier, time_id) {
   return(numerator / denominator)
 }
 
-tail_jumps <- function(df, omega = 0.49, W=501) {
+tail_jumps <- function(allrets, omega = 0.49, W=501) {
   # Ensure correct types
-  df$Date_time <- as.POSIXct(df$Date_time, tz = "UTC")
-  df$time <- format(as.POSIXct(df$Date_time), "%H:%M:%S")
-  df$time <- as.character(df$time)
-  df$date <- as.Date(df$Date_time)
-  df$ret <- as.numeric(df$ret)
-  df$day_id <- as.integer(as.factor(df$date))
-  df$time_id <- as.integer(as.factor(df$time))
+  allrets$Date_time <- as.POSIXct(allrets$Date_time, tz = "UTC")
+  allrets$time <- format(as.POSIXct(allrets$Date_time), "%H:%M:%S")
+  allrets$time <- as.character(allrets$time)
+  allrets$date <- as.Date(allrets$Date_time)
+  allrets$ret <- as.numeric(allrets$ret)
+  allrets$day_id <- as.integer(as.factor(allrets$date))
+  allrets$time_id <- as.integer(as.factor(allrets$time))
   
-  intra_returns_dt <- df
+  intra_returns_dt <- allrets
   
   # Calculate alpha_hat
   subset_tmp <- intra_returns_dt[intra_returns_dt$day_id < W, ]
@@ -315,14 +327,18 @@ tail_jumps <- function(df, omega = 0.49, W=501) {
   
   # Initialize alpha_dict
   alpha_dict <- setNames(rep(alpha_hat, nrow(tods)), tods$time_id)
+  summary(alpha_dict)
   
   intra_returns_dt$cv_values <- NA_real_
   intra_returns_dt$jv_values <- NA_real_
   intra_returns_dt$rjv_values <- NA_real_
   intra_returns_dt$ljv_values <- NA_real_
   
+  mean_alphas<-list()
+  mean_alphas["init"] <-mean(alpha_dict)
   unique_days <- sort(unique(intra_returns_dt$day_id))
   for (day in unique_days) {
+    print(day)
     day_mask <- intra_returns_dt$day_id == day
     day_data <- intra_returns_dt[day_mask, ]
     valid_mask <- day_data$time_id > 0
@@ -330,6 +346,7 @@ tail_jumps <- function(df, omega = 0.49, W=501) {
     alphas <- as.numeric(alpha_dict[as.character(time_ids)])
     rets <- day_data$ret[valid_mask]
     n <- length(rets)
+    
     # Vectorized estimator for the day
     if (n > 0) {
       results <- CV_estimator_vectorized(rets, alphas, alpha_multiplier)
@@ -338,12 +355,23 @@ tail_jumps <- function(df, omega = 0.49, W=501) {
     
     # Update alpha_dict after each day if time_id == max exists
     if (any(day_data$time_id == max(all_time_ids))) {
+      print("Updating alpha_dict")
       last_cv <- sum(intra_returns_dt$cv_values[day_mask], na.rm = TRUE)
-      for (key in as.character(tods$time_id)) {
-        tod_value <- tods$tod_value[tods$time_id == as.integer(key)]
-        alpha_dict[[key]] <- 3 * sqrt(last_cv) * tod_value
+      # If CVt-1 is other than 0, reestimate alphas
+      alph_test = mean(3 * sqrt(last_cv) * tods$tod_value)
+      if ((alph_test > alpha_hat/10) & (last_cv != 0)){
+        for (key in as.character(tods$time_id)) {
+          tod_value <- tods$tod_value[tods$time_id == as.integer(key)]
+          alpha_dict[[key]] <- 3 * sqrt(last_cv) * tod_value
+        }
+      } else {
+        print(paste0("Kept alphas from the previous day, since CVt-1 was ", last_cv,". On day ", day))
       }
+      
+      print(summary(alpha_dict))
+      mean_alphas[day]<-mean(alpha_dict)
     }
+    
   }
   
   # Aggregate by date
@@ -533,15 +561,13 @@ daily_hf<-function(dts,W=501,MR=1502,filenam="hf",savefile=FALSE, sampling=1,
     
     ##### Lags and future values #####
     ldf<-aggreg(L1=df$VI.L1, nam="VI", lags=c(1,5,22), ahead=c(1,5,22))
-    df[,colnames(ldf)]<-ldf
-    # df <- cbind(df, ldf)
+    df[,which(colnames(df) %in% colnames(ldf))]<-ldf
     for (var in c("JC.L1", "CC.L1", "NSV.L1", "PSV.L1", "SJ.L1", "RSK.L1", "RK.L1", "RLEV.L1",
                   "BT.CV.L1", "BT.JV.L1", "BT.RJV.L1", "BT.LJV.L1")) {
       ldf <- aggreg(L1 = df[[var]], nam = gsub("\\.L1", "", var), lags = c(1, 5, 22), ahead = NULL)
-      # df <- cbind(df, ldf)
+      print(colnames(ldf))
       df[,colnames(ldf)]<-ldf
     }
-    
     
     ##### Full day price variation ####
     
@@ -757,7 +783,7 @@ LogTransform = function(DT,trans=c(2:4,7:8,13:15)) {
     if (sum(x<0,na.rm=T) == 0) {
       
       # If there is 0 -> add 1, else keep ordinary log
-      if (sum(x==0,na.rm=t) > 0) DT[,trans[k]] = log(1+x) else DT[,trans[k]] = log(x)
+      if (sum(x==0,na.rm=T) > 0) DT[,trans[k]] = log(1+x) else DT[,trans[k]] = log(x)
       
       # In case of negative values  
     } else {
@@ -845,7 +871,7 @@ compute_crv <- function(hf, column_nams=c("VON.L1","VON.L5", "VON.L22","V.L1","V
 
 ############ Bonus function for stock indices in robustness checks #############
 
-select_process_index <- function(indices,symbol,W=501,MR=1502, min_date, max_date){
+select_process_index <- function(indices,symbol,W=501,MR=1502, min_date, max_date,fillnas=TRUE,reference_data=NULL){
   
   # Select
   tmp <- indices[indices$Symbol==symbol,c('Date','rv5','rsv','medrv','open_price','close_price')]
@@ -855,6 +881,33 @@ select_process_index <- function(indices,symbol,W=501,MR=1502, min_date, max_dat
   tmp <- tmp[tmp$Date>=min_date & tmp$Date<=max_date,]
   print(paste("Processing symbol:",symbol,min_date, max_date))
   print(summary(tmp$Date))
+  
+  # Fill NAs if needed
+  fill_missing_dates_multi <- function(data, reference_data, var_names) {
+    
+    rownames(data)<-data$Date
+    missing_dates <- setdiff(rownames(reference_data), rownames(data))
+    if (length(missing_dates) > 0) {
+      missing_df <- data.frame(Date = as.Date(missing_dates))
+      rownames(missing_df) <- missing_df$Date
+      missing_df[var_names] <- NA
+      data <- rbind(data, missing_df)
+      data <- data[order(rownames(data)), , drop=F]
+      # Loop over var_names to fill NAs with last known values with function na.locf
+      for (var in var_names){
+        data[[var]] <- zoo::na.locf(data[[var]], na.rm = FALSE)
+      }
+    }
+    return(data)
+  }
+  
+  if (fillnas){
+    if (is.null(reference_data)){
+      warning("reference_data must be provided when fillnas is TRUE")
+    }
+    
+    tmp <- fill_missing_dates_multi(tmp, reference_data, var_names=c('VI.L1','NSV.L1','MEDRV.L1','Open','Close'))
+  }
   
   # N obs
   TT = dim(tmp)[1]
@@ -981,4 +1034,3 @@ select_process_index <- function(indices,symbol,W=501,MR=1502, min_date, max_dat
   
   return(tmp)
 }
-
