@@ -56,7 +56,6 @@ transform = function(DR,totrans=att,formats=c('None','Log','MA','ASVI','SQRT'),K
       
       x = DR[,totrans[v]]
       
-      # if (formats[i] == 'Log')  new.data[,v] = log(x+1)
       if (formats[i] == 'Log'){
         # Are there any negative values?
         if (sum(x<0,na.rm=T) == 0) {
@@ -184,7 +183,10 @@ estimate = function(estim,predi,estim.type,LogTrans=TRUE,model.estim=specs[[1]],
   estim = estim[complete.cases(estim),]
   
   # Check if there are any observations, otherwise return NA
-  if (dim(estim)[1] == 0) return(NA)
+  if (dim(estim)[1] == 0){
+    message("There are no observations for estim")
+    return(NA)
+  } 
   
   # SETUP DEP and INDEP VARIABLES
   y = as.matrix(estim[,all.vars(model.estim)[1]])
@@ -228,6 +230,7 @@ estimate = function(estim,predi,estim.type,LogTrans=TRUE,model.estim=specs[[1]],
   
   if (is.na(pred[1])) {
     
+    message("pred is NA")
     return(NA) 
     
   } else {
@@ -340,7 +343,7 @@ estim.bench = function(DR,dep,indep,fixing,estim.type,LogTrans,formats,K,addto,W
     
   }
   stopCluster(cl)
-  Sys.time()-A
+  print(Sys.time()-A)
   
   # Create matrix of results
   outsample = matrix(NA,nrow=length(TMP),ncol=2)
@@ -425,13 +428,61 @@ ROLL.CSLR = function(DR=DR,specs,bench,estim.type,LogTrans,W=1000,nc=32,orderapp
   TT = dim(DR)[1]
   # Number of models
   M = length(specs)
+
+  # Pre-check
+  # 1) union of all vars used by any spec (dependent + independents)
+  all_spec_vars <- unique(unlist(lapply(specs, all.vars)))
+  # remove dependent variable? keep it so complete.cases counts it as well (helps detect missing y)
+  # optional: if you only want to check predictors, use setdiff(all_spec_vars, dep)
+  
+  # 2) index range for windows (s runs from (W+1):TT in current code)
+  s_range <- (W + 1):TT
+  
+  # 3) function to check a single window quickly
+  is_window_ok_quick <- function(DR, s, W, vars) {
+    # slice including prediction row as the last row
+    DT_window <- DR[(s - W):s, vars, drop = FALSE]
+    # At least one complete row (estimation can proceed)
+    if (nrow(na.omit(DT_window)) == 0) return(FALSE)
+    # Prediction row (last row) must have all predictor values (no NA)
+    pred_row <- DT_window[nrow(DT_window), , drop = FALSE]
+    if (any(is.na(pred_row))) return(FALSE)
+    # optional: also check for Inf/NaN anywhere
+    if (any(!is.finite(as.matrix(DT_window)), na.rm = TRUE)) return(FALSE)
+    return(TRUE)
+  }
+  
+  # 4) build valid_s logical vector
+  valid_s <- logical(length(s_range))
+  for (i in seq_along(s_range)) {
+    s <- s_range[i]
+    valid_s[i] <- is_window_ok_quick(DR, s, W, all_spec_vars)
+  }
+  
+  # optional: report how many invalid windows
+  if (sum(!valid_s) > 0) {
+    message(sprintf("ROLL.CSLR precheck: %d of %d windows invalid (will be skipped)", sum(!valid_s), length(valid_s)))
+    # save the DR data for debugging
+    dbg_data <- list(DR = DR, W = W, invalid_s = s_range[!valid_s])
+    saveRDS(dbg_data, file = "debug_ROLL_CSLR_precheck_fail.rds")
+    # break if this happens and return all info
+    stop("ROLL.CSLR precheck failed: some windows invalid")
+  } else {
+    message("ROLL.CSLR precheck: all windows valid")
+  }
   
   A = Sys.time()
-  cl <- makeCluster(nc)
+  # Cap the number of workers to available cores to avoid oversubscription
+  available_cores <- parallel::detectCores(logical = FALSE)
+  nc_use <- min(max(1, available_cores - 1), max(1, nc)) # leave one core for system if possible
+  print(paste("Using", nc_use, "cores."))
+  cl <- makeCluster(nc_use)
   registerDoParallel(cl)
+
   TMP = foreach::foreach (s = (W+1):TT,.export=c('CSLR','estimate')) %dopar% CSLR(DT=DR[(s-W):(s),],specs,bench,estim.type,LogTrans,orderapprox)
+
   stopCluster(cl)
-  Sys.time()-A
+  print(Sys.time()-A)
   
   # Create matrix of results
   outsample = matrix(NA,nrow=length(TMP),ncol=M+2)
@@ -444,7 +495,6 @@ ROLL.CSLR = function(DR=DR,specs,bench,estim.type,LogTrans,W=1000,nc=32,orderapp
 # MSE LOSS 
 mse.loss = function(proxy,true) {
   results = list()
-  TT = length(true)
   yl = (proxy - true)^2
   yl.L1 = c(NA,yl[1:(length(yl)-1)])
   tr.L1 = c(NA,true[1:(length(yl)-1)])
@@ -457,7 +507,6 @@ mse.loss = function(proxy,true) {
 # QLIKE LOSS
 qli.loss = function(proxy,true) {
   results = list()
-  TT = length(true)
   yl = (true/proxy - log(true/proxy) - 1)
   yl.L1 = c(NA,yl[1:(length(yl)-1)])
   tr.L1 = c(NA,true[1:(length(yl)-1)])
@@ -508,6 +557,7 @@ COMBINE.CSLR = function(DR = DR, pred = pred, W=W, CS=CS, loss='MSE', dep = dep,
   
   # Combine DR and datasets with predictions
   colnames(pred) = c('Proxy','Bench',paste('m.',1:(dim(pred)[2]-2),sep=''))
+  # print(summary(pred))
   DRN = data.frame(DR[(W+1):dim(DR)[1],],pred)
   
   # Number of forecasts
@@ -588,7 +638,8 @@ COMBINE.CSLR = function(DR = DR, pred = pred, W=W, CS=CS, loss='MSE', dep = dep,
         loss.tmp = matrix(NA,nrow=M,ncol=1)
         # If loss function is MSE, use the mse.loss.delta function, otherwise use qli.loss.delta
         for (a in 1:M) loss.tmp[a,1] = ifelse(loss[l]=='MSE',mse.loss.delta(true=true,proxy=pred[(s-CS):(s-1),a+1],mem=delta[r]),qli.loss.delta(true=true,proxy=pred[(s-CS):(s-1),a+1],mem=delta[r]))
-        
+        # print(summary(loss.tmp))        
+
         # Now perform clustering
         for (g in 1:NG) {
           
@@ -600,9 +651,15 @@ COMBINE.CSLR = function(DR = DR, pred = pred, W=W, CS=CS, loss='MSE', dep = dep,
           loss.ave.group = c(); for (h in 1:ngroup[g]) loss.ave.group[h] = mean(loss.tmp[clusters.tmp==h])
           
           # Which models correspond to n-best performing clusters
-          if (ngroup[g] <= 5)                   opt.models = which(clusters.tmp %in% head(order(loss.ave.group),n=1))
-          if (ngroup[g] >  5 & ngroup[g] <= 10) opt.models = which(clusters.tmp %in% head(order(loss.ave.group),n=3))
-          if (ngroup[g] > 10)                   opt.models = which(clusters.tmp %in% head(order(loss.ave.group),n=5))
+          if (ngroup[g] <= 5){
+            opt.models = which(clusters.tmp %in% head(order(loss.ave.group),n=1))
+          }  
+          if (ngroup[g] >  5 & ngroup[g] <= 10){
+            opt.models = which(clusters.tmp %in% head(order(loss.ave.group),n=3))
+          }  
+          if (ngroup[g] > 10){
+            opt.models = which(clusters.tmp %in% head(order(loss.ave.group),n=5))
+          }
           
           # Select optimum models and find the average - trimmed - forecast
           cslr.kmeans[r,g,l] = mean(pred[s,opt.models+1],trim=trim) # + 1 because the first is the true. After that opt.models+1 = 2 belonst to HAR (benchmark)
@@ -616,11 +673,16 @@ COMBINE.CSLR = function(DR = DR, pred = pred, W=W, CS=CS, loss='MSE', dep = dep,
           if (opt.nms[1] == 'Bench') opt.nms = opt.nms[-1]
           opt.num = as.numeric(substr(opt.nms,start=3,stop=nchar(opt.nms)))
           imp.var.tmp[,1,r,l,g,1,1] = length(opt.num)
-          for (m in 1:length(opt.num)) {
-            var.tmp = all.vars(specs[[opt.num[m]]])
-            imp.var.tmp[which(dimnames(imp.var.tmp)[[1]] %in% var.tmp),2,r,l,g,1,1] = imp.var.tmp[which(dimnames(imp.var.tmp)[[1]] %in% var.tmp),2,r,l,g,1,1] + 1
+          if (length(opt.num) > 0) {
+            for (m in 1:length(opt.num)) {
+              var.tmp = all.vars(specs[[opt.num[m]]])
+              imp.var.tmp[which(dimnames(imp.var.tmp)[[1]] %in% var.tmp),2,r,l,g,1,1] = imp.var.tmp[which(dimnames(imp.var.tmp)[[1]] %in% var.tmp),2,r,l,g,1,1] + 1
+            }
+            imp.var.tmp[,3,r,l,g,1,1] = 100 * (imp.var.tmp[,2,r,l,g,1,1]/imp.var.tmp[,1,r,l,g,1,1])
+          } else {
+            imp.var.tmp[,3,r,l,g,1,1] = 0
           }
-          imp.var.tmp[,3,r,l,g,1,1] = 100 * (imp.var.tmp[,2,r,l,g,1,1]/imp.var.tmp[,1,r,l,g,1,1])
+          
           
           #####################################################################################
           # K-MEDOIDS CLUSTERING
@@ -646,11 +708,16 @@ COMBINE.CSLR = function(DR = DR, pred = pred, W=W, CS=CS, loss='MSE', dep = dep,
           if (opt.nms[1] == 'Bench') opt.nms = opt.nms[-1]
           opt.num = as.numeric(substr(opt.nms,start=3,stop=nchar(opt.nms)))
           imp.var.tmp[,1,r,l,g,2,1] = length(opt.num)
-          for (m in 1:length(opt.num)) {
-            var.tmp = all.vars(specs[[opt.num[m]]])
-            imp.var.tmp[which(dimnames(imp.var.tmp)[[1]] %in% var.tmp),2,r,l,g,2,1] = imp.var.tmp[which(dimnames(imp.var.tmp)[[1]] %in% var.tmp),2,r,l,g,2,1] + 1
+          if (length(opt.num) > 0) {
+            for (m in 1:length(opt.num)) {
+              var.tmp = all.vars(specs[[opt.num[m]]])
+              imp.var.tmp[which(dimnames(imp.var.tmp)[[1]] %in% var.tmp),2,r,l,g,2,1] = imp.var.tmp[which(dimnames(imp.var.tmp)[[1]] %in% var.tmp),2,r,l,g,2,1] + 1
+            }
+            imp.var.tmp[,3,r,l,g,2,1] = 100 * (imp.var.tmp[,2,r,l,g,2,1]/imp.var.tmp[,1,r,l,g,2,1])
+          } else {
+            imp.var.tmp[,3,r,l,g,2,1] = 0
           }
-          imp.var.tmp[,3,r,l,g,2,1] = 100 * (imp.var.tmp[,2,r,l,g,2,1]/imp.var.tmp[,1,r,l,g,2,1])
+
           
         }
 
@@ -825,7 +892,6 @@ regul = function(spec = spec, DT = DR, W = W, CS = CS, alphas = c(1.0), reestim 
             # Setup weights
             # calculate weights as 1/Y, where Y is RV, but replace 0 with the minimum non-zero value
             yd = Estim.DT[,all.vars(spec)[1]]
-            # yd[yd==0] = min(yd[yd!=0])
             yd[yd<=0] = min(yd[yd>0])
             wls= 1/yd
           }
@@ -968,7 +1034,7 @@ regul = function(spec = spec, DT = DR, W = W, CS = CS, alphas = c(1.0), reestim 
   for (i in 1:length(TMP)) cf.optim[,1,i] = TMP[[i]][[3]]
   for (i in 1:length(TMP)) cf.optim[,2,i] = TMP[[i]][[4]]  
   
-  # stopCluster(cl)
+  stopCluster(cl)
   
   # Combine into a single dataset
   predict = data.frame(Date=as.character(DT$Date[(W+CS+1):TT]),true=lasso[,1],lasso[,2],lasso[,3])
@@ -1009,7 +1075,6 @@ rf = function(spec = spec, DT = DR, W = W, CS = CS, num.trees = c(100), mtry = c
     if (length(which(true==0))>0) out = c(out,which(true==0)) 
     fr = fr[-out]
     true  = true[-out]
-    TT = length(true)
     results = list()
     results[['mean']] = mean((fr-true)^2)
     results[['loss']] = (fr-true)^2
@@ -1021,7 +1086,6 @@ rf = function(spec = spec, DT = DR, W = W, CS = CS, num.trees = c(100), mtry = c
     if (length(which(true==0))>0) out = c(out,which(true==0)) 
     fr = fr[-out]
     true  = true[-out]
-    TT = length(true)
     results = list()
     results[['mean']] = mean((true/fr - log(true/fr) - 1))
     results[['loss']] = (true/fr - log(true/fr) - 1)
@@ -1033,7 +1097,6 @@ rf = function(spec = spec, DT = DR, W = W, CS = CS, num.trees = c(100), mtry = c
     if (length(which(true==0))>0) out = c(out,which(true==0)) 
     fr = fr[-out]
     true  = true[-out]
-    TT = length(true)
     results = list()
     results[['mean']] = mean(abs(fr-true))
     results[['loss']] = abs(fr-true)
@@ -1045,7 +1108,6 @@ rf = function(spec = spec, DT = DR, W = W, CS = CS, num.trees = c(100), mtry = c
     if (length(which(true==0))>0) out = c(out,which(true==0)) 
     fr = fr[-out]
     true  = true[-out]
-    TT = length(true)
     results = list()
     results[['mean']] = mean(abs((fr-true)/true))
     results[['loss']] = abs((fr-true)/true)
@@ -1125,9 +1187,7 @@ rf = function(spec = spec, DT = DR, W = W, CS = CS, num.trees = c(100), mtry = c
           if (estim.type=='WLS1' | estim.type=='WLS3') {
             # Estimate model
             if (LogTrans) model = ranger(spec,data=Estim.DT,case.weights=wls,mtry=mtry[Y],num.trees=num.trees[R],max.depth=max.depth[M],write.forest=TRUE,min.node.size=5,num.threads=1,always.split.variables = c("V.L1.Log")) # Added the two variables directly instead of 'fixing' because of .... Error in { : task 1 failed - "object 'fixing' not found"
-            # if (LogTrans) model = ranger(spec,data=Estim.DT,case.weights=wls,mtry=mtry[Y],num.trees=num.trees[R],max.depth=max.depth[M],write.forest=TRUE,min.node.size=5,always.split.variables = c("V.L1.Log","V.L5.Log")) # Added the two variables directly instead of 'fixing' because of .... Error in { : task 1 failed - "object 'fixing' not found"
             if (!LogTrans) model = ranger(spec,data=Estim.DT,case.weights=wls,mtry=mtry[Y],num.trees=num.trees[R],max.depth=max.depth[M],write.forest=TRUE,min.node.size=5,num.threads=1,always.split.variables = c("V.L1")) # Added the two variables directly instead of 'fixing' because of .... Error in { : task 1 failed - "object 'fixing' not found"
-            # if (!LogTrans) model = ranger(spec,data=Estim.DT,case.weights=wls,mtry=mtry[Y],num.trees=num.trees[R],max.depth=max.depth[M],write.forest=TRUE,min.node.size=5,always.split.variables = c("V.L1","V.L5")) # Added the two variables directly instead of 'fixing' because of .... Error in { : task 1 failed - "object 'fixing' not found"
           } else {
             # Estimate model
             if (LogTrans) model = ranger(spec,data=Estim.DT,mtry=mtry[Y],num.trees=num.trees[R],max.depth=max.depth[M],write.forest=TRUE,min.node.size=5,num.threads=1,always.split.variables = c("V.L1.Log","V.L5.Log")) # Added the two variables directly instead of 'fixing' because of .... Error in { : task 1 failed - "object 'fixing' not found"
@@ -1168,7 +1228,6 @@ rf = function(spec = spec, DT = DR, W = W, CS = CS, num.trees = c(100), mtry = c
           
           if (length(which(pred>y.max))>0) pred[which(pred>y.max)] = y.max
           if (length(which(pred<y.min))>0) pred[which(pred<y.min)] = y.min
-          point=7
           return(pred)
         }
         
@@ -1182,7 +1241,6 @@ rf = function(spec = spec, DT = DR, W = W, CS = CS, num.trees = c(100), mtry = c
   rf = matrix(NA,nrow=NF-CS,ncol=LF+1)
   colnames(rf) = c('true',paste('rf.',loss,sep=''))
   rownames(rf) = as.character(DT$Date[(W+CS+1):TT])
-  rf[,1] = exp(DT[which(DT$Date %in% DT$Date[(W+CS+1):TT]),all.vars(spec)[1]])
   
   if (LogTrans) rf[,1] = exp(DT[which(DT$Date %in% DT$Date[(W+CS+1):TT]),all.vars(spec)[1]])
   if (!LogTrans) rf[,1] = DT[which(DT$Date %in% DT$Date[(W+CS+1):TT]),all.vars(spec)[1]]
@@ -1255,9 +1313,6 @@ synch = function(cslr=pred.cslr,reg=pred.reg,ranfor=pred.rf) {
   
   # Check
   if (sum(ranfor$Date != cslr$Date) + sum(ranfor$Date != reg$Date) + sum(cslr$Date != reg$Date) > 0) return('Synchronization failed')
-  
-  # Number of observations
-  TT = dim(cslr)[1]
   
   # Combine datasets
   pred = data.frame(cslr,reg[,-which(names(reg) %in% c('Date','true'))],ranfor[,-which(names(reg) %in% c('Date','true'))])
@@ -1425,6 +1480,16 @@ event_estimation <- function(store, DR,dep = 'V.H1.Log',category="att",senttype=
       all.cat.name<-paste(all.cat.name, cat.name, sep=".")
     }
   }
+  
+  # Remove BT.LJV variables if they are identical with NSV variables (this happens for 1 min frequency)
+  if ("BT.LJV.L1.Log" %in% all.att & "NSV.L1.Log" %in% all.att){
+    cor_check=cor(DR[,c("BT.LJV.L1.Log", "NSV.L1.Log")], use="complete.obs")[1]	
+    print(paste("cor check", cor_check))
+    if (cor_check==1){
+      all.att = all.att[!all.att %in% c("BT.LJV.L1.Log", "BT.LJV.L5.Log", "BT.LJV.L22.Log")]
+      print("Removed BT.LJV variables due to perfect correlation with NSV variables")
+    }
+  }
 
   print("Selected the following variables:")
   print(all.att)
@@ -1462,14 +1527,14 @@ event_estimation <- function(store, DR,dep = 'V.H1.Log',category="att",senttype=
   # CSLR - Complete subset linear regression models
   # LIST OF SPECIFICATIONS
   specs = specs.create(dep=dep,fixing=fixing,indep=indep,cx=cx)
-  print(length(specs))
   print("csr specs done")
   # ROLLING CSLR
   pred = ROLL.CSLR(DR=DRT,specs=specs,bench=bench,estim.type=estim.type,LogTrans=LogTrans,W=W,nc=nc,orderapprox)
   gc(); closeAllConnections()
   print("csr pred done")
   # COMPILE CSLR FORECASTS
-  pred.cslr = COMBINE.CSLR(DR = DRT, pred = pred, W=W, CS=CS, loss=loss, dep = dep, LogTrans=LogTrans, delta = delta, trim = trim, ngroup = ngroup, nc=nc, specs) 
+  pred.cslr = COMBINE.CSLR(DR = DRT, pred = pred, W=W, CS=CS, loss=loss, dep = dep, 
+                           LogTrans=LogTrans, delta = delta, trim = trim, ngroup = ngroup, nc=nc, specs) 
   print("csr pred combined")
   store[[paste(all.cat.name, 'cf.cslr.optim', sep=".")]] = pred.cslr$var.imp
   pred.cslr = pred.cslr$predict
