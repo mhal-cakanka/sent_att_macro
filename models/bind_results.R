@@ -5,8 +5,9 @@
 ################################## Setup #######################################
 
 # Load the helper functions shared_functions.R to get the function create_wd()
-if (!require("pacman")) install.packages("pacman")
-pacman::p_load(here)
+# if (!require("pacman")) install.packages("pacman")
+# pacman::p_load(here)
+setwd("..")
 source(here::here('shared_functions.R'))
 
 # Move to working directory for models
