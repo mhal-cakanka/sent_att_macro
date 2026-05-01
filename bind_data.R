@@ -1,4 +1,4 @@
-# SRIPT LOADS ATTENTION, SENTIMENT AND PRICES DATASETS
+# SCRIPT LOADS ATTENTION, SENTIMENT AND PRICES DATASETS
 # THEN IT MERGES EVERYTHING AND SAVES NEW DATASET READY FOR PREDICTIONS
 
 
@@ -6,6 +6,7 @@
   if (!require("pacman")) install.packages("pacman")
   pacman::p_load(here)
   source(here::here('shared_functions.R'))
+  source(here::here('stockdata/stockdata_functions.R'))
  
   
 ################################# Load all datasets ############################   
@@ -18,9 +19,17 @@
   load("wiki.RData")
   load("pq.RData")
   load("tw.RData")
-
   
-################################# Merge ########################################
+  # More explanatory variables: VIX, S&P500 RV
+  vix <- read_csv("VIXCLS.csv"); vix <- as.data.frame(vix)
+  rownames(vix) <- vix$observation_date; vix <- vix[,-1, drop=F]
+  colnames(vix) <- c("VIX")
+  
+  # SP500 RV
+  load("SP_RV.RData")
+  
+
+  ################################# Merge ########################################
   
   # Bind dataframes with identical number of rows
   dataset<-cbind(gt,wiki)  
@@ -36,9 +45,18 @@
   dataset<-merge(dataset,pq, by="row.names", all = F)
   rownames(dataset)<-dataset$Row.names
   dataset<-dataset[,-1]
+  # Add vix
+  dataset<-merge(dataset,vix, by="row.names", all = F)
+  rownames(dataset)<-dataset$Row.names
+  dataset<-dataset[,-1]
+  # Add SP500 RV
+  dataset<-merge(dataset,SP_RV, by="row.names", all = F)
+  rownames(dataset)<-dataset$Row.names
+  dataset<-dataset[,-1]
 
   # Save
   save(dataset,file="dataset.RData")
+  rm(bloomberg,gt,wiki,tw,pq,vix,SP_RV); gc()
   setwd(my_wd)
 
 
@@ -58,7 +76,21 @@
   # Load, bind and save data with RV variables that was created in batches (script "hf_dataset.R")
   hf1=load_bind(load_path=path_1hf, save_path=path_final, my_wd, filenam="hf1")
   hf5=load_bind(load_path=path_5hf, save_path=path_final, my_wd, filenam="hf5")
+  gc()
   
+######################## Add cross-sectional average RV ########################   
+  
+  # Select columns for which to compute cross-sectional average RV
+  column_nams=c("VON.L1","VON.L5", "VON.L22","V.L1","V.L5", "V.L22")
+  # Minimum number of observations required to compute cross-sectional average RV from
+  min_N=2500
+  # Log transform the CRV variables? 
+  LogTrans=TRUE
+  hf1 <- compute_crv(hf1, column_nams=column_nams, min_N=min_N, LogTrans=LogTrans,
+                     save_path=path_final, my_wd=my_wd, filenam="hf1_crv");gc()
+  hf5 <- compute_crv(hf5, column_nams=column_nams, min_N=min_N, LogTrans=LogTrans,
+                     save_path=path_final, my_wd=my_wd, filenam="hf5_crv");gc()
+
   
 ###################### Merge data on stocks with att/sent ######################
   
@@ -73,10 +105,13 @@
   #### Version with weights #### 
   
   # Drop columns that use the non-weighted version of full day price variation (and also weights, which are not needed)
-  drop_cols=c("w1","w2","OJC","VON.L1","VON.L5","VON.L22","VON.H1","VON.H5","VON.H22",
-              "VON.L1.Log","VON.L5.Log","VON.L22.Log","VON.H1.Log","VON.H5.Log","VON.H22.Log","Date.1")
-  hf_market_1w=lapply(hf_market_full_1, function(x) x[!(names(x) %in% drop_cols)])
-  hf_market_5w=lapply(hf_market_full_5, function(x) x[!(names(x) %in% drop_cols)])
+  all_col_nms = colnames(hf_market_full_1[[1]])
+  # subset column names, that include "VON." or ".VON." from all_col_nms
+  von_col_nms = all_col_nms[grepl("VON\\.", all_col_nms) | grepl("\\.VON\\.", all_col_nms)]
+  drop_cols_w = c(von_col_nms, "w1","w2","OJC","Date.1")
+  
+  hf_market_1w=lapply(hf_market_full_1, function(x) x[!(names(x) %in% drop_cols_w)])
+  hf_market_5w=lapply(hf_market_full_5, function(x) x[!(names(x) %in% drop_cols_w)])
   
   # Save
   setwd(my_wd); setwd(path_final)
@@ -93,29 +128,33 @@
   #### Simple version without weights ####
   
   # Drop columns that use the weighted version of full day price variation (and also weights, which are not needed)
-  drop_cols=c("w1","w2","OJC","V.L1","V.L5","V.L22","V.H1","V.H5","V.H22",
-              "V.L1.Log","V.L5.Log","V.L22.Log","V.H1.Log","V.H5.Log","V.H22.Log","Date.1")
-  hf_market_1s=lapply(hf_market_full_1, function(x) x[!(names(x) %in% drop_cols)])
-  hf_market_5s=lapply(hf_market_full_5, function(x) x[!(names(x) %in% drop_cols)])
+  all_col_nms = colnames(hf_market_full_1[[1]])
+  # subset all_col_nms to those, that start with "V." with nothing before
+  v_col_nms = all_col_nms[grepl("^V\\.", all_col_nms) | grepl("\\.V\\.", all_col_nms)]
+  drop_cols_s = c(v_col_nms, "w1","w2","OJC","Date.1")
+  
+  hf_market_1s=lapply(hf_market_full_1, function(x) x[!(names(x) %in% drop_cols_s)])
+  hf_market_5s=lapply(hf_market_full_5, function(x) x[!(names(x) %in% drop_cols_s)])
   
   
   # Rename columns "VON.L1" (simple sum of day and night) etc to "V.L1" etc (we can easily refer to V.L1)
-  base_names <- c("L1", "L5", "L22", "H1", "H5", "H22")
-  log_suffix <- ".Log"
-  old_col_name <- c(paste0("VON.", base_names), paste0("VON.", base_names, log_suffix))
-  new_col_name <- c(paste0("V.", base_names), paste0("V.", base_names, log_suffix))
+  # base_names <- c("L1", "L5", "L22", "H1", "H5", "H22")
+  # log_suffix <- ".Log"
+  # old_col_name <- c(paste0("VON.", base_names), paste0("VON.", base_names, log_suffix))
+  # new_col_name <- c(paste0("V.", base_names), paste0("V.", base_names, log_suffix))
+  old_col_name=von_col_nms
+  new_col_name=v_col_nms
   
   
   # Loop over all dataframes in the list and rename columns
-  
   for (i in 1:length(hf_market_1s)){
     old_col_idx<-which(colnames(hf_market_1s[[i]]) %in% old_col_name)
     colnames(hf_market_1s[[i]])[old_col_idx]<-new_col_name
-    }
+  }
   for (i in 1:length(hf_market_5s)){
     old_col_idx<-which(colnames(hf_market_5s[[i]]) %in% old_col_name)
-    colnames(hf_market_5s[[i]])[old_col_name]<-old_col_idx
-    }
+    colnames(hf_market_5s[[i]])[old_col_idx]<-new_col_name
+  }
   
   # Save
   setwd(my_wd); setwd(path_final)
