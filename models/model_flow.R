@@ -139,6 +139,20 @@ if (estim.type!="WLS3") download_wd=paste(download_wd,"_",estim.type,sep="")
 create_wd(download_wd)
 
 
+# Subset only to stocks that have been done before
+if (indices==FALSE){
+  filenames <- list.files("./files/hf_market_5w_H1")
+  filenames <- filenames[!grepl("_part$", filenames)]
+  stocks.market <- stocks.market[names(stocks.market) %in% filenames]
+}
+
+
+# Load all files that include "part" in their name and only run for those stocks
+# part_filenames <- list.files(download_wd, pattern = "_part$")
+# part_filenames <- gsub("_part$", "", part_filenames)
+# stocks.market <- stocks.market[names(stocks.market) %in% part_filenames]
+
+
 ######################## APPLY MODELS TO ONE STOCK ###############
 
 # Start
@@ -156,7 +170,7 @@ DR = stocks.market[[i]]; rm(stocks.market);gc()
 # If found, use that 'store' as the starting point; we will only add missing model entries.
 # -----------------------
 store = list()
-possible_paths <- c(file.path(download_wd, res.nms), paste0(file.path(download_wd, res.nms), ".rds"))
+possible_paths <- c(paste0(file.path(download_wd, res.nms), "_part"),file.path(download_wd, res.nms))
 loaded_any <- FALSE
 for (p in possible_paths) {
   if (file.exists(p)) {
@@ -294,26 +308,47 @@ if (dim(DR)[1] < (L+1)){
   }
   
   
+
+  A = Sys.time()
+  expected_name <- make_event_name(categories = c('superbench'), senttype = NULL)
+  message(paste("Computing superbench models (will be saved under:", expected_name, ")"))
+  store <- event_estimation(store, DR,dep = dep,category='superbench',senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
+                            estim.type,LogTrans,formats= NULL,K,addto,W,nc,orderapprox,bench=bench,
+                            cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA,
+                            alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
+
+  print("superbench complete")
+  print(Sys.time()-A)
+  
   # Additional bechmark models
   # HAR+SUPER BENCHMARK=HAR-CSLR 
-  expected_name <- make_event_name(categories = c('superbench'), senttype = NULL)
-  if (!(expected_name %in% names(store))) {
-    A = Sys.time()
-    store <- event_estimation(store, DR,dep = dep,category='superbench',senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
-                              estim.type,LogTrans,formats= NULL,K,addto,W,nc,orderapprox,bench=bench,
-                              cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA, 
-                              alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
-    
-    print("superbench complete")
-    print(Sys.time()-A)
-  } else {
-    message(paste("Skipping superbench event models - found existing entry:", expected_name))
-  }
+  # expected_name <- make_event_name(categories = c('superbench'), senttype = NULL)
+  # if (!(expected_name %in% names(store))) {
+  #   A = Sys.time()
+  #   store <- event_estimation(store, DR,dep = dep,category='superbench',senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
+  #                             estim.type,LogTrans,formats= NULL,K,addto,W,nc,orderapprox,bench=bench,
+  #                             cx=4, alphas,reestim, nlambda,loss,CS,nams, IA=IA,
+  #                             alwayssplit = c('V.L1.Log','V.L5.Log'),LogTransRF=LogTransRF)
+  #   
+  #   print("superbench complete")
+  #   print(Sys.time()-A)
+  # } else {
+  #   message(paste("Skipping superbench event models - found existing entry:", expected_name))
+  # }
   
+
+  setwd(download_wd)
+  # Save merged/updated store (partial result)
+  res.nms.part=paste(res.nms,"part",sep="_")	
+  saveRDS(store,file=res.nms.part)
+  print("new file with partial results saved")	
+  setwd(my_wd);setwd(models_wd)
+
   
   # HAR+SUPER BENCHMARK=HAR-CSLR-FULL with crosssectional RV over all stocks
   expected_name <- make_event_name(categories = c('superbench_full'), senttype = NULL)
-  if (!(expected_name %in% names(store))) {
+  if (indices == FALSE & !(expected_name %in% names(store))){
+  # if (!(expected_name %in% names(store))) {
     message(paste("Computing superbench full models (will be saved under:", expected_name, ")"))
     A = Sys.time()
     store <- event_estimation(store, DR,dep = dep,category='superbench_full',senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
@@ -326,11 +361,41 @@ if (dim(DR)[1] < (L+1)){
   } else {
     message(paste("Skipping superbench full models - found existing entry:", expected_name))
   }
-  
+
+  setwd(download_wd)
+  # Save merged/updated store (partial result)
+  res.nms.part=paste(res.nms,"part",sep="_")	
+  saveRDS(store,file=res.nms.part)
+  print("new file with partial results saved")	
+  setwd(my_wd);setwd(models_wd)
+
+
+  # HAR-VIX BENCHMARK=HAR with only VIX as additional variable
+  expected_name <- make_gen_name(categories = c('vix'), senttype = NULL)
+  if (indices == FALSE & !(expected_name %in% names(store))){
+  # if (!(expected_name %in% names(store))) {
+    message(paste("Computing vix benchmark models (will be saved under:", expected_name, ")"))
+    A = Sys.time()
+    store <- general_estimation(store, DR,dep,category='vix',senttype=NULL,fixing,
+                                estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,nams)
+    print("vix bench complete")
+    print(Sys.time()-A)
+    
+  } else {
+    message(paste("Skipping vix benchmark models - found existing entry:", expected_name))
+  }
+
+  setwd(download_wd)
+  # Save merged/updated store (partial result)
+  res.nms.part=paste(res.nms,"part",sep="_")	
+  saveRDS(store,file=res.nms.part)
+  print("new file with partial results saved")	
+  setwd(my_wd);setwd(models_wd)
   
   # HAR+SUPER BENCHMARK=HAR-CSLR-RV with S&P500 RV instead
   expected_name <- make_event_name(categories = c('superbench_rv'), senttype = NULL)
-  if (!(expected_name %in% names(store))) {
+  if (indices == FALSE & !(expected_name %in% names(store))){
+  # if (!(expected_name %in% names(store))) {
     message(paste("Computing superbench full with S&P500 models (will be saved under:", expected_name, ")"))
     A = Sys.time()
     store <- event_estimation(store, DR,dep = dep,category='superbench_rv',senttype=NULL,fixing = c('V.L1.Log','V.L5.Log'),
@@ -345,25 +410,15 @@ if (dim(DR)[1] < (L+1)){
   }
 
   
-  # HAR-VIX BENCHMARK=HAR with only VIX as additional variable
-  expected_name <- make_gen_name(categories = c('vix'), senttype = NULL)
-  if (!(expected_name %in% names(store))) {
-    message(paste("Computing vix benchmark models (will be saved under:", expected_name, ")"))
-    A = Sys.time()
-    store <- general_estimation(store, DR,dep,category='vix',senttype=NULL,fixing,
-                                estim.type,LogTrans,formats,K,addto,W,nc,orderapprox,nams)
-    print("vix bench complete")
-    print(Sys.time()-A)
-    
-  } else {
-    message(paste("Skipping vix benchmark models - found existing entry:", expected_name))
-  }
-  
-
-  
   setwd(download_wd)
   # Save merged/updated store (this will overwrite the file with the updated store)
   saveRDS(store,file=res.nms)
+  # if we got here, delete the partial results file
+  if (file.exists(res.nms.part)) {
+    #Delete file if it exists
+    file.remove(res.nms.part)
+  }
+  print("new file with results saved")	
   setwd(my_wd)
 }
 
