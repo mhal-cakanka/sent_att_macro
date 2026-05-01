@@ -101,3 +101,16 @@ superbench.KD_0.95_GR5_MSE;superbench.KD_0.95_GR5_QLIKE;cslr_har_kd5
 superbench.KD_0.95_GR10_MSE;superbench.KD_0.95_GR10_QLIKE;cslr_har_kd10
 superbench.lasso.mse;superbench.lasso.qli;lasso_har
 superbench.rf.MSE;superbench.rf.QLIKE;rf_har
+superbench_full.cslr;superbench_full.cslr;cslr_har_full
+superbench_full.FX_0.95_MSE;superbench_full.FX_0.95_QLIKE;cslr_har_mem_full
+superbench_full.KM_0.95_GR5_MSE;superbench_full.KM_0.95_GR5_QLIKE;cslr_har_km5_full
+superbench_full.KM_0.95_GR10_MSE;superbench_full.KM_0.95_GR10_QLIKE;cslr_har_km10_full
+superbench_full.KD_0.95_GR5_MSE;superbench_full.KD_0.95_GR5_QLIKE;cslr_har_kd5_full
+superbench_full.KD_0.95_GR10_MSE;superbench_full.KD_0.95_GR10_QLIKE;cslr_har_kd10_full
+superbench_rv.cslr;superbench_rv.cslr;cslr_har_rv
+superbench_rv.FX_0.95_MSE;superbench_rv.FX_0.95_QLIKE;cslr_har_mem_rv
+superbench_rv.KM_0.95_GR5_MSE;superbench_rv.KM_0.95_GR5_QLIKE;cslr_har_km5_rv
+superbench_rv.KM_0.95_GR10_MSE;superbench_rv.KM_0.95_GR10_QLIKE;cslr_har_km10_rv
+superbench_rv.KD_0.95_GR5_MSE;superbench_rv.KD_0.95_GR5_QLIKE;cslr_har_kd5_rv
+superbench_rv.KD_0.95_GR10_MSE;superbench_rv.KD_0.95_GR10_QLIKE;cslr_har_kd10_rv
+gen.vix;gen.vix;gen_vix
