@@ -3,14 +3,15 @@
 # Load necessary libraries
 if (!require("pacman")) install.packages("pacman")
 # Check whether these libraries are installed, install if not and load all of them
-pacman::p_load(readr,dplyr,rvest,textclean,rjson,quantmod)
+pacman::p_load(here,readr,dplyr,rvest,textclean,rjson,quantmod)
 
 # Save working directory
 my_wd <- getwd()
 
 
 # Source libraries and functions from tw_funct.R
-source(here::here("./twitter/tw_funct.R"))
+# source(here::here("./twitter/tw_funct.R"))
+source("./twitter/tw_funct.R")
 
 ################################## WD ########################################## 
 
