@@ -15,17 +15,18 @@ days <- arg[2]             # top/bottom/all corresponds to top 10% of days with 
 nc <- as.numeric(arg[3])   # number of cores to use
 vers <- arg[4]             # 1w/1s/5w/5s
 depnum <- arg[5]           # number that dictates the dependent variable: 'V.H1.Log'/'V.H5.Log'/'V.H22.Log'
-full <- arg[5]             # T - run MCS on all models, F - run a pairwise MCS
+estim.type <- arg[6]      # 'MSE'/'WLS1'/'WLS3'
+full <- arg[7]             # T - run MCS on all models, F - run a pairwise MCS
 
 # Uncomment to get mcs pairwise results for the main specification (after aggregation Table 6 in the paper)
-# mcs_alpha=0.05; days="all"; nc=12; vers="5w"; depnum=1; full=F
+# mcs_alpha=0.05; days="all"; nc=12; vers="5w"; depnum=1; estim.type="MSE"; full=F
 
 # Or uncomment the following for mcs on all models for the main specification
-# mcs_alpha=0.05; days="all"; nc=12; vers="5w"; depnum=1; full=T
+# mcs_alpha=0.05; days="all"; nc=12; vers="5w"; depnum=1; estim.type="MSE"; full=T
 
 
 #### FUNCTIONS AND FILES IN THE PARENT DIRECTORY #### 
-
+setwd("..")
 #  Save the current working directory
 parent_wd <- getwd()
 
@@ -34,8 +35,16 @@ if (!require("pacman")) install.packages("pacman")
 pacman::p_load(here)
 source(here::here('shared_functions.R'))  # to load function loadRData
 
+# Define dependent variable full name
+estim.type="MSE"
+if (!is.na(estim.type)) {
+  depnum_full <- paste0(depnum, "_", estim.type)
+} else {
+  depnum_full <- depnum
+}
+
 # Load file with results
-filename<-paste0("results_",vers,"_H",depnum)
+filename<-paste0("results_",vers,"_H",depnum_full)
 model_results_wd="./models/results"
 results<-readRDS(paste(model_results_wd,filename,sep="/"));gc()
 print(paste("loaded file",filename))
@@ -95,13 +104,13 @@ if (days == "all"){
 }
 
 # Select names of individual models + date and realized volatility
-nms = c('Date','rv','har',"cslr_har_km5",'gen_dum',
+nms = c('Date','rv','har',"cslr_har_km5_full",'gen_dum',
         'gen_att','cslr_att_km5','lasso_att','rf_att',
         'gen_posneg_fin','cslr_posneg_fin_km5','lasso_posneg_fin','rf_posneg_fin')
 
 # Select dataframes from list of results
 selection=c("gen.att","att","gen.pos.fin.gen.neg.fin",
-            "pos.fin.neg.fin","gen.dum","superbench")
+            "pos.fin.neg.fin","gen.dum","superbench_full")
 
 print("loaded parameters")
 

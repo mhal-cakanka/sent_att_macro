@@ -30,7 +30,13 @@ setwd(parent_wd)
 
 
 # Load results - list of dataframes with results for each stock and model
-filename<-paste0("results_",vers,"_H",depnum)
+estim.type="MSE"
+if (!is.na(estim.type)) {
+  depnum_full <- paste0(depnum, "_", estim.type)
+} else {
+  depnum_full <- depnum
+}
+filename<-paste0("results_",vers,"_H",depnum_full)
 model_results_wd="./models/results"
 results<-readRDS(paste(model_results_wd,filename,sep="/"));gc()
 print(paste("loaded file",filename))
@@ -88,14 +94,18 @@ L = 2500
 formats = c('Log')
 # Variables of interest
 interest = c('V.L1.Log',"JC.L1.Log","CC.L1.Log","NSV.L1.Log","PSV.L1.Log","SJ.L1.Log", # realised measures
+             "RSK.L1.Log", "RK.L1.Log", "RLEV.L1.Log", "BT.RJV.L1.Log","BT.LJV.L1.Log", # new realised measures
+             "CRV.V.L1.Log", "SP500_V.L1.Log", "VIX", # more market variables
              'gg.1','wg.1','tg.1','pg.1',   # general attention
              'tg.9','pg.9','tg.10','pg.10') # general finbert sentiment
+# which interest variable include ".Log" ?
+idx = grep(".Log",interest)
 # Variables to be transformed
-totrans=interest[-c(1:6)]
+totrans=interest[-c(idx)]
 
 # Run the table_dscr function and save
 table3 <- table_dscr(stocks.market,L,interest,formats,totrans)
-savetable(tablefile=table3, wd=results_wd,tblname=paste("table3",formats,sep="_"), vers = vers, depnum=depnum)
+savetable(tablefile=table3, wd=results_wd,tblname=paste("table3",formats,sep="_"), vers = vers, depnum=depnum_full)
 
 
 ######################## Table 4 ########################
@@ -109,10 +119,16 @@ specs[['HAR-S']] = as.formula(V.H1.Log ~ V.L1.Log+V.L5.Log+V.L22.Log+tg.9+pg.9+t
 specs[['HAR-M']] = as.formula(V.H1.Log ~ V.L1.Log+V.L5.Log+V.L22.Log+
                            I(V.L1.Log*b.1)+I(V.L1.Log*b.2)+I(V.L1.Log*b.3)+I(V.L1.Log*b.4)+I(V.L1.Log*b.5)+
                            I(V.L1.Log*b.6)+I(V.L1.Log*b.7)+I(V.L1.Log*b.8)+I(V.L1.Log*b.9)+I(V.L1.Log*b.10))
+specs[["HAR-U"]] = as.formula(V.H1.Log ~ V.L1.Log+V.L5.Log+V.L22.Log+
+                                I(V.L1.Log*u.1)+I(V.L1.Log*u.2)+I(V.L1.Log*u.3)+I(V.L1.Log*u.4)+I(V.L1.Log*u.5)+
+                                I(V.L1.Log*u.6)+I(V.L1.Log*u.7)+I(V.L1.Log*u.8)+I(V.L1.Log*u.9)+I(V.L1.Log*u.10))
+specs[["HAR-E"]] = as.formula(V.H1.Log ~ V.L1.Log+V.L5.Log+V.L22.Log+
+                                I(V.L1.Log*e.1)+I(V.L1.Log*e.2)+I(V.L1.Log*e.3)+I(V.L1.Log*e.4)+I(V.L1.Log*e.5)+
+                                I(V.L1.Log*e.6)+I(V.L1.Log*e.7)+I(V.L1.Log*e.8)+I(V.L1.Log*e.9)+I(V.L1.Log*e.10))
 
 # Run the table_insample function and save
 table4 <- table_insample(stocks.market,specs,formats = c('Log'))
-savetable(tablefile=table4,vers="5w", depnum=1,wd=results_wd, tblname="table4")
+savetable(tablefile=table4,vers=vers, depnum=depnum_full,wd=results_wd, tblname="table4")
 
 
 ######################## Table 5 ########################
@@ -122,14 +138,18 @@ savetable(tablefile=table4,vers="5w", depnum=1,wd=results_wd, tblname="table4")
 # How many extreme observations to remove?
 ext.rem = 12 # approx 2%
 
+
 # Select names of individual models + date and realized volatility
-nms = c('Date','rv','har',"cslr_har_km5",'gen_dum',   # date, rv, benchmark models
+nms = c('Date','rv','har',"cslr_har_km5_full",'gen_dum',
+        # "cslr_har_km5", "cslr_har_km5_rv","gen_vix",   # date, rv, benchmark models
         'gen_att','cslr_att_km5','lasso_att','rf_att',# attention models
         'gen_posneg_fin','cslr_posneg_fin_km5','lasso_posneg_fin','rf_posneg_fin') # sentiment models
 
 # Select dataframes from list of results
 selection=c("gen.att","att","gen.pos.fin.gen.neg.fin",
-            "pos.fin.neg.fin","gen.dum","superbench")
+            "pos.fin.neg.fin","gen.dum","superbench_full")
+            # "superbench","superbench_rv","gen.vix"
+            
 
 # Load in a dictionary of model names
 model_dict <- read_delim("model.dict.csv",delim = ";", escape_double = FALSE, trim_ws = TRUE)
@@ -140,12 +160,12 @@ perc=1; quan=c("top")  # top 100% days with highest realized volatility = all da
 
 # Select losses to be reported
 losses=c("MSE")
-# Use loss=c("MSE","QLIKE","MAE","MAPE") to report all losses
+# Use losses=c("MSE","QLIKE","MAE","MAPE") to report all losses
 
 # Run the table_outsample function and save
 table5 <- table_outsample(out=results,ext.rem=ext.rem, perc=perc, quan=quan, selection=selection, 
                           model_dict=model_dict, nms=nms,losses=losses, depnum=depnum)
-savetable(tablefile=table5,vers=vers, depnum=depnum,wd=results_wd, tblname="table5_MSE")
+savetable(tablefile=table5,vers=vers, depnum=depnum_full,wd=results_wd, tblname="table5_all")
 
 
 ######################## Table 6 ########################
@@ -162,7 +182,8 @@ current_wd=getwd()
 
 
 # Run to aggregate into tables. The function both outputs and saves results via function savetables().
-output <- process_mcs_pair(mcs_alpha,days,vers,depnum,current_wd,mcs_wd=mcs_wd,results_wd = results_wd)
+output <- process_mcs_pair(mcs_alpha=MM[1],days=DD[1],vers=VV[1],depnum=DN[1],
+                           current_wd,mcs_wd=mcs_wd,results_wd = results_wd)
 table6 <- output[["LOSS.MSE_ssm"]]
 savetable(tablefile=table6,vers=vers, depnum=depnum,wd=results_wd, tblname="table6")
 
@@ -207,7 +228,7 @@ link="https://en.wikipedia.org/w/index.php?title=List_of_S%26P_500_companies&old
 # Run the table_sectors function and save
 table7<-table_sectors(link=link,out=results,ext.rem=ext.rem,loss=c('MSE','QLIKE','MAE','MAPE'),selection=selection, model_dict=model_dict, nms=nms)
 # Note: we report table7$MSE.overperform as table 7 in the paper, but we save all results in the table7 object
-savetable(tablefile=table7, tblname="table7", vers = vers, depnum=depnum, wd=results_wd)
+savetable(tablefile=table7, tblname="table7", vers = vers, depnum=depnum_full, wd=results_wd)
 
 
 ######################## Table 8 ########################
@@ -221,7 +242,7 @@ perc=0.1; quan=c("top")  # top 100% days with highest realized volatility = all 
 # Run the table_outsample function and save
 table8 <- table_outsample(out=results,ext.rem=ext.rem, perc=perc, quan=quan, selection=selection, 
                           model_dict=model_dict, nms=nms,losses=losses, depnum=depnum)
-savetable(tablefile=table8,vers=vers, depnum=depnum,wd=results_wd, tblname="table8_top10")
+savetable(tablefile=table8,vers=vers, depnum=depnum_full,wd=results_wd, tblname="table8_top10")
 
 
 ######################## Table 9 ########################
@@ -235,7 +256,7 @@ perc=0.1; quan=c("bottom")  # bottom 90% days with lowest realized volatility
 
 table9 <- table_outsample(out=results,ext.rem=ext.rem, perc=perc, quan=quan, selection=selection, 
                           model_dict=model_dict, nms=nms,losses=losses, depnum=depnum)
-savetable(tablefile=table9,vers=vers, depnum=depnum,wd=results_wd, tblname="table9_bottom90")
+savetable(tablefile=table9,vers=vers, depnum=depnum_full,wd=results_wd, tblname="table9_bottom90")
 
 
 ######################## Table 10 ########################
@@ -255,6 +276,21 @@ setwd(tables_wd)
 table10 <- table_vimp(selects=selects, nams=nams)
 savetable(tablefile=table10,vers=vers, depnum=depnum,wd=results_wd, tblname="table10_vimp")
 
+
+# CSR variable importance for different versions of the superbench model
+csr_old=table_vimp_avg(out=results, select="superbench.cf.cslr.optim", loss="MSE")
+csr_full=table_vimp_avg(out=results, select="superbench_full.cf.cslr.optim", loss="MSE")
+csr_rv=table_vimp_avg(out=results, select="superbench_rv.cf.cslr.optim", loss="MSE")
+
+# bind together, keep all variables
+table10_csr <- merge(csr_old, csr_full, by="variables", all=TRUE)
+table10_csr <- merge(table10_csr, csr_rv, by="variables", all=TRUE)
+names(table10_csr) <- c("Variable", "Importance_CSR_Old", "Importance_CSR_Full", "Importance_CSR_RV")
+# reorder rows
+rows_order = c(csr_full$variables, "SP500_V.L1.Log","SP500_V.L5.Log", "SP500_V.L22.Log")
+table10_csr <- table10_csr[match(rows_order, table10_csr$Variable), ]
+
+savetable(tablefile=table10_csr,vers=vers, depnum=depnum_full,wd=results_wd, tblname="table10_csr_vimp")
 
 ######################## Table A3 ########################
 # Table A3 - descriptive statistics for event-related attention variables
@@ -298,16 +334,27 @@ savetable(tablefile=tableA4, wd=results_wd,tblname=paste("tableA4",formats,sep="
 # Set parameters
 ext.rem = 12 # approx 2% extreme observations to remove
 # Select names of individual models + date and realized volatility
-nms = c('Date','rv','har',"cslr_har_km5",'gen_dum',   # date, rv, benchmark models
+# nms = c('Date','rv','har',"cslr_har_km5",'gen_dum',   # date, rv, benchmark models
+#         'gen_att','cslr_att_km5','lasso_att','rf_att',# attention models
+#         'gen_posneg_fin','cslr_posneg_fin_km5','lasso_posneg_fin','rf_posneg_fin') # sentiment models
+# Select dataframes from list of results
+# selection=c("gen.att","att","gen.pos.fin.gen.neg.fin",
+#             "pos.fin.neg.fin","gen.dum","superbench")
+
+# Select names of individual models + date and realized volatility
+nms = c('Date','rv','har',"cslr_har_km5_full",
+        'gen_dum',    # date, rv, benchmark models
         'gen_att','cslr_att_km5','lasso_att','rf_att',# attention models
         'gen_posneg_fin','cslr_posneg_fin_km5','lasso_posneg_fin','rf_posneg_fin') # sentiment models
+
 # Select dataframes from list of results
 selection=c("gen.att","att","gen.pos.fin.gen.neg.fin",
-            "pos.fin.neg.fin","gen.dum","superbench")
+            "pos.fin.neg.fin","gen.dum","superbench_full")
+
 # Subset days
 perc=1; quan=c("top")  # top 100% days with highest realized volatility = all data
 # Loss function(s)
-losses = c("MSE")
+losses = c("MSE","QLIKE")
 # Load in a dictionary of model names
 model_dict <- read_delim("model.dict.csv",delim = ";", escape_double = FALSE, trim_ws = TRUE)
 model_dict <-data.frame(model_dict)
@@ -328,7 +375,7 @@ for (l in losses){
     tableA5 <-rbind(tableA5,w.res.dt)
   }
   # Save for this loss function
-  savetable(tablefile=tableA5, wd=results_wd,tblname=paste("tableA5",l,sep="_"), vers = vers, depnum=depnum)
+  savetable(tablefile=tableA5, wd=results_wd,tblname=paste("tableA5",l,sep="_"), vers = vers, depnum=depnum_full)
 }
 
 
@@ -343,24 +390,24 @@ ext.rem = 12 # approx 2%
 perc=1; quan=c("top")  # top 100% days with highest realized volatility = all data
 
 # Select names of individual models + date and realized volatility
-nms = c('Date','rv','har',"cslr_har_km5",'gen_dum',   # date, rv, benchmark models
+nms = c('Date','rv','har',"cslr_har_km5_full",'gen_dum',   # date, rv, benchmark models
         'gen_att','cslr_att_km5','lasso_att','rf_att',# attention models
         'gen_posneg_fin','cslr_posneg_fin_km5','lasso_posneg_fin','rf_posneg_fin') # sentiment models
-nms.vad = c('Date','rv','har',"cslr_har_km5",'gen_dum',   
+nms.vad = c('Date','rv','har',"cslr_har_km5_full",'gen_dum',   
             'gen_att','cslr_att_km5','lasso_att','rf_att',
             'gen_posneg_vad','cslr_posneg_vad_km5','lasso_posneg_vad','rf_posneg_vad')
-nms.emo = c('Date','rv','har',"cslr_har_km5",'gen_dum',   
+nms.emo = c('Date','rv','har',"cslr_har_km5_full",'gen_dum',   
             'gen_att','cslr_att_km5','lasso_att','rf_att',
             'gen_posneg_emo','cslr_posneg_emo_km5','lasso_posneg_emo','rf_posneg_emo')
 # Select dataframes from list of results
 selection=c("gen.att","att","gen.pos.fin.gen.neg.fin",
-            "pos.fin.neg.fin","gen.dum","superbench")
+            "pos.fin.neg.fin","gen.dum","superbench_full")
 selection_long=c("gen.att","att",
                  "gen.pos.emo.gen.neg.emo","pos.emo.neg.emo",
                  "gen.pos.vad.gen.neg.vad","pos.vad.neg.vad",
                  "gen.pos.fin.gen.neg.fin","pos.fin.neg.fin",
-                 "gen.dum","superbench")
-
+                 "gen.dum","superbench_full")
+estim.type="MSE"
 
 # Use table_outsample() with different parameters
 configs <- list(
@@ -389,8 +436,13 @@ for (config in configs) {
   # Set the working directory to the main directory
   setwd(parent_wd)
   
+  depnum=config$depnum
+  if (!is.na(estim.type)) {
+    depnum_full <- paste0(depnum, "_", estim.type)
+  }
+  
   # Load results
-  filename<-paste0("results_",config$vers,"_H",config$depnum)
+  filename<-paste0("results_",config$vers,"_H",depnum_full)
   model_results_wd="./models/results"
   results<-readRDS(paste(model_results_wd,filename,sep="/"));gc()
   print(paste("loaded file",filename))
@@ -428,4 +480,49 @@ for (conf in names(tables)){
 # Save tables
 savetable(tablefile=tableS1, wd=results_wd,tblname="tableS1", vers = NULL, depnum=NULL)
 savetable(tablefile=tableS2, wd=results_wd,tblname="tableS2", vers = NULL, depnum=NULL)
+
+
+
+# Loss diferentials
+# store.tbl <- get_store.tbl(out=results, ext.rem=ext.rem, perc=perc, quan=quan, selection=selection, 
+#                            model_dict=model_dict, nms=nms, losses=losses, depnum=depnum)
+# 
+process_loss_differentials_3d <- function(store_tbl) {
+  # Number of loss functions (dimension 1 of store.tbl)
+  num_loss_functions <- dim(store_tbl)[1]
+  
+  num_days <-dim(store_tbl)[2]
+
+  # Number of models (dimension 3 of store.tbl)
+  num_models <- dim(store_tbl)[3]
+
+  # Number of stocks (dimension 4 of store.tbl)
+  num_stocks <- dim(store_tbl)[4]
+
+  # Initialize the output array
+  # Dimensions:
+  # 1st - Loss functions
+  # 2nd - Models (excluding HAR, so num_models - 1)
+  # 3rd - Stocks
+  loss_differentials <- array(NA, dim = c(num_loss_functions, num_days, num_models - 1, num_stocks))
+
+  # Extract the HAR benchmark losses (1st model in dimension 3)
+  har_model_losses <- store_tbl[, , 1, ] # Excludes the HAR model from further calculations
+
+  # Compute loss differentials for each model (excluding HAR)
+  for (model_idx in 2:num_models) { # Start from the 2nd model
+    loss_differentials[, ,model_idx - 1, ] <- store_tbl[, , model_idx, ] - har_model_losses
+  }
+
+  # Name the dimensions of loss_differentials
+  dimnames(loss_differentials)[[1]] <- dimnames(store_tbl)[[1]]  # Loss functions
+  dimnames(loss_differentials)[[2]] <- dimnames(store_tbl)[[2]]
+  dimnames(loss_differentials)[[3]] <- dimnames(store_tbl)[[3]][-1]  # Models (excluding HAR)
+  dimnames(loss_differentials)[[4]] <- dimnames(store_tbl)[[4]]  # Stocks
+
+  return(loss_differentials)
+}
+
+
+loss_differentials <- process_loss_differentials_3d(store.tbl)
 
