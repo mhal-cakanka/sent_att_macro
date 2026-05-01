@@ -30,7 +30,7 @@ stock_dataset<-stocks.market[[s]]; rm(stocks.market); gc()
 
 # (For Table 2)
 #  Load forecast results
-results<-readRDS("./models/results/results_5w_H1");gc()
+results<-readRDS("./models/results/results_5w_H1_MSE");gc()
 # Load in a dictionary of model names
 model_dict <- read_delim("./tables/model.dict.csv",delim = ";", escape_double = FALSE, trim_ws = TRUE)
 model_dict <-data.frame(model_dict)
@@ -73,13 +73,13 @@ figure1 <- figure1_function(stock_dataset,VRS=c("gg.1","wg.1","tg.1","pg.1","VI.
 ext.rem = 12 # approx 2%
 
 # Select names of individual models + date and realized volatility
-nms = c('Date','rv','har',"cslr_har_km5",'gen_dum',   # date, rv, benchmark models
+nms = c('Date','rv','har',"cslr_har_km5_full",'gen_dum',   # date, rv, benchmark models
         'gen_att','cslr_att_km5','lasso_att','rf_att',# attention models
         'gen_posneg_fin','cslr_posneg_fin_km5','lasso_posneg_fin','rf_posneg_fin') # sentiment models
 
 # Select dataframes from list of results
 selection=c("gen.att","att","gen.pos.fin.gen.neg.fin",
-            "pos.fin.neg.fin","gen.dum","superbench")
+            "pos.fin.neg.fin","gen.dum","superbench_full")
 figure2 = figure2_function(results, ext.rem = 12,perc=1,quan=c("top"),selection,model_dict,
                            nms,losses=c("MSE","QLIKE","MAE","MAPE"),filename="figure2.jpeg",
                            results_wd=results_wd,parent_wd, figures_wd=figures_wd)
