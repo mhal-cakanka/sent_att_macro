@@ -83,6 +83,7 @@ create_wd(results_wd)
 # Table S1 - robustness checks: proportion of cases the column model out-performed HAR
 # Table S2 - robustness checks: average forecast improvement compared HAR
 
+# Final section: preparing data of loss differentials for trading strategy application
 
 ######################## Table 3 ########################
 # Table 3 - Descriptive statistics for realized measures and general attention and sentiment variables
@@ -482,47 +483,33 @@ savetable(tablefile=tableS1, wd=results_wd,tblname="tableS1", vers = NULL, depnu
 savetable(tablefile=tableS2, wd=results_wd,tblname="tableS2", vers = NULL, depnum=NULL)
 
 
+######################## Loss differentials ########################
 
-# Loss diferentials
-# store.tbl <- get_store.tbl(out=results, ext.rem=ext.rem, perc=perc, quan=quan, selection=selection, 
-#                            model_dict=model_dict, nms=nms, losses=losses, depnum=depnum)
-# 
-process_loss_differentials_3d <- function(store_tbl) {
-  # Number of loss functions (dimension 1 of store.tbl)
-  num_loss_functions <- dim(store_tbl)[1]
-  
-  num_days <-dim(store_tbl)[2]
+# Process store_tbl object into a 3D array used later in trading strategy application 
+# create results/table_results/ to store store.tbl and loss_differentials, if it does not exist
+tr_path = "./models/table_results"
+setwd(parent_wd)
+create_wd(tr_path)
 
-  # Number of models (dimension 3 of store.tbl)
-  num_models <- dim(store_tbl)[3]
+# Reload main-spec results (depnum=1, vers="5w") in case the S1/S2 loop overwrote them
+depnum <- 1
+depnum_full <- paste0(depnum, "_", estim.type)
+filename <- paste0("results_", "5w", "_H", depnum_full)
+results <- readRDS(paste("./models/results", filename, sep="/"))
+setwd(tables_wd)
 
-  # Number of stocks (dimension 4 of store.tbl)
-  num_stocks <- dim(store_tbl)[4]
+# Reset to main-spec parameters
+nms <- c('Date','rv','har',"cslr_har_km5_full",'gen_dum',
+         'gen_att','cslr_att_km5','lasso_att','rf_att',
+         'gen_posneg_fin','cslr_posneg_fin_km5','lasso_posneg_fin','rf_posneg_fin')
+selection <- c("gen.att","att","gen.pos.fin.gen.neg.fin",
+               "pos.fin.neg.fin","gen.dum","superbench_full")
+losses <- c("MSE","QLIKE","MAE","MAPE")
 
-  # Initialize the output array
-  # Dimensions:
-  # 1st - Loss functions
-  # 2nd - Models (excluding HAR, so num_models - 1)
-  # 3rd - Stocks
-  loss_differentials <- array(NA, dim = c(num_loss_functions, num_days, num_models - 1, num_stocks))
-
-  # Extract the HAR benchmark losses (1st model in dimension 3)
-  har_model_losses <- store_tbl[, , 1, ] # Excludes the HAR model from further calculations
-
-  # Compute loss differentials for each model (excluding HAR)
-  for (model_idx in 2:num_models) { # Start from the 2nd model
-    loss_differentials[, ,model_idx - 1, ] <- store_tbl[, , model_idx, ] - har_model_losses
-  }
-
-  # Name the dimensions of loss_differentials
-  dimnames(loss_differentials)[[1]] <- dimnames(store_tbl)[[1]]  # Loss functions
-  dimnames(loss_differentials)[[2]] <- dimnames(store_tbl)[[2]]
-  dimnames(loss_differentials)[[3]] <- dimnames(store_tbl)[[3]][-1]  # Models (excluding HAR)
-  dimnames(loss_differentials)[[4]] <- dimnames(store_tbl)[[4]]  # Stocks
-
-  return(loss_differentials)
-}
-
+store.tbl <- get.store(out=results, ext.rem=ext.rem, losses=losses, type="full",
+                       selection=selection, model_dict=model_dict, nms=nms)
+save(store.tbl, file = paste(tr_path, "store.tbl.RData", sep="/"), version = 2)
 
 loss_differentials <- process_loss_differentials_3d(store.tbl)
+save(loss_differentials, file = paste(tr_path, "loss_differentials.RData", sep="/"), version = 2)
 

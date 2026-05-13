@@ -591,7 +591,7 @@ table_sectors<-function(link,out,ext.rem,loss=c('MSE','QLIKE','MAE','MAPE'),sele
   sector.dict<-sectors_fun(link)[[2]]
   
   # Use function get.store to prepare preliminary version of the table
-  store.tbl.ave <- get.store(out=out, ext.rem, loss=loss, selection=selection, model_dict=model_dict, nms=nms)
+  store.tbl.ave <- get.store(out=out, ext.rem=ext.rem, losses=loss, type="ave", selection=selection, model_dict=model_dict, nms=nms)
   
   results<-list()
   
@@ -715,8 +715,11 @@ sectors_fun<-function(link="https://en.wikipedia.org/wiki/List_of_S%26P_500_comp
 }
 
 
-# Helper function for table_sectors 
-get.store <- function(out, ext.rem, loss=c('MSE','QLIKE','MAE','MAPE'), selection, model_dict, nms){ # type full or average
+# Helper function for table_sectors (type="ave") and loss differentials (type="full").
+# type="ave" returns 3D [losses, models, stocks] with averaged loss values.
+# type="full" returns 4D [losses, dates, models, stocks] with per-day loss values.
+get.store <- function(out, ext.rem, losses=c('MSE','QLIKE','MAE','MAPE'), 
+                      type="full", selection, model_dict, nms){ # type full or average
   
   # Number of observations
   TT=dim(out[[1]][["att"]])[1]
@@ -724,24 +727,33 @@ get.store <- function(out, ext.rem, loss=c('MSE','QLIKE','MAE','MAPE'), selectio
   NI = length(out)
   
   
-  # Prepare files/objects to store results 
+  # Prepare files/objects to store results
+  # This one will store values for two loss functions calculated for each day, for each model and each stock
+  # I will use this one to estimate panels
+  store.tbl = array(NA,dim=c(length(losses),TT,length(nms)-2,NI))
+  dimnames(store.tbl)[[1]] = losses                                             # loss functions
+  dimnames(store.tbl)[[2]] = as.Date(out[[1]][["att"]][,1],format='%Y-%m-%d') # days
+  dimnames(store.tbl)[[3]] = nms[-c(1,2)]                                     # models
+  dimnames(store.tbl)[[4]] = names(out)                                       # stocks
+  
   # In store.tbl.ave we want to store average values for loss functions
   # This will be useful for building tables 
-  store.tbl.ave = array(NA,dim=c(length(loss),length(nms)-2,NI))
-  dimnames(store.tbl.ave)[[1]] = loss                        # loss functions
+  store.tbl.ave = array(NA,dim=c(length(losses),length(nms)-2,NI))
+  dimnames(store.tbl.ave)[[1]] = losses                        # loss functions
   dimnames(store.tbl.ave)[[2]] = nms[-c(1,2)]                # models
   dimnames(store.tbl.ave)[[3]] = names(out)                  # stocks
   
   # Loop over stocks
   for (i in 1:NI) {
+    # print(i)
     
     # Select a dataset
     dt = out[[i]]
     
     # Loop over loss functions selected
-    for (l in 1:length(loss)){
+    for (l in 1:length(losses)){
       
-      calibri.loss=loss[l]
+      calibri.loss=losses[l]
       
       # PREPARE A LOSS DATASET
       temp.calibri.loss = calibri.loss
@@ -754,7 +766,7 @@ get.store <- function(out, ext.rem, loss=c('MSE','QLIKE','MAE','MAPE'), selectio
       dt.loss = dt.loss[-tail(order(dt.loss$rv),n=ext.rem),]
       
       print(calibri.loss)
-      loss.ind=which(dimnames(store.tbl.ave)[[1]] == calibri.loss)
+      loss.ind=which(dimnames(store.tbl)[[1]] == calibri.loss)
       
       # QLIKE
       if (calibri.loss=="QLIKE"){dt.loss$rv[dt.loss$rv==0] = 1}
@@ -766,27 +778,73 @@ get.store <- function(out, ext.rem, loss=c('MSE','QLIKE','MAE','MAPE'), selectio
       NM = length(idx.mod)
       
       # AVERAGES
-      # LOOP OVER MODELS
-      for (j in 1:NM) {
-        if (calibri.loss == "MSE"){
-          store.tbl.ave[loss.ind,j,i]<-mean((dt.loss$rv-dt.loss[,idx.mod[j]])^2,na.rm=T)
+      if (type == "ave"){
+        # LOOP OVER MODELS
+        for (j in 1:NM) {
+          if (calibri.loss == "MSE"){
+            store.tbl.ave[loss.ind,j,i]<-mean((dt.loss$rv-dt.loss[,idx.mod[j]])^2,na.rm=T)
+          }
+          if (calibri.loss == "QLIKE"){
+            store.tbl.ave[loss.ind,j,i]<-mean(dt.loss$rv/dt.loss[,idx.mod[j]] - log(dt.loss$rv/dt.loss[,idx.mod[j]]) - 1,na.rm=T)
+          }
+          if (calibri.loss =="MAE"){
+            store.tbl.ave[loss.ind,j,i]<-mean(abs(dt.loss$rv-dt.loss[,idx.mod[j]]),na.rm=T)
+          }
+          if (calibri.loss == "MAPE"){
+            store.tbl.ave[loss.ind,j,i]<-mean(abs((dt.loss$rv-dt.loss[,idx.mod[j]])/dt.loss$rv),na.rm=T)
+          }
         }
-        if (calibri.loss == "QLIKE"){
-          store.tbl.ave[loss.ind,j,i]<-mean(dt.loss$rv/dt.loss[,idx.mod[j]] - log(dt.loss$rv/dt.loss[,idx.mod[j]]) - 1,na.rm=T)
+      }
+      
+      # FULL
+      if (type == "full"){
+        # LOSS STORE
+        LS = matrix(NA,nrow=dim(dt.loss)[1],ncol=length(nms)-2)
+        colnames(LS) = nms[-c(1,2)]
+        
+        # LOOP OVER MODELS
+        for (j in 1:NM) {
+          if (calibri.loss == "MSE"){
+            LS[,j]=(dt.loss$rv-dt.loss[,idx.mod[j]])^2
+          }
+          if (calibri.loss == "QLIKE"){
+            LS[,j]=dt.loss$rv/dt.loss[,idx.mod[j]] - log(dt.loss$rv/dt.loss[,idx.mod[j]]) - 1
+          }
+          if (calibri.loss =="MAE"){
+            LS[,j]=abs(dt.loss$rv-dt.loss[,idx.mod[j]])
+          }
+          if (calibri.loss == "MAPE"){
+            LS[,j]=abs((dt.loss$rv-dt.loss[,idx.mod[j]])/dt.loss$rv)
+          }
         }
-        if (calibri.loss =="MAE"){
-          store.tbl.ave[loss.ind,j,i]<--mean(abs(dt.loss$rv-dt.loss[,idx.mod[j]]),na.rm=T)
+        
+        if (l==1){
+          store.tbl.tmp = array(NA,dim=c(length(losses),nrow(dt.loss),length(nms)-2))
+          dimnames(store.tbl.tmp)[[1]]=losses
+          dimnames(store.tbl.tmp)[[2]]=as.Date(dt.loss$Date,format='%Y-%m-%d')
+          dimnames(store.tbl.tmp)[[3]]=nms[-c(1,2)]
         }
-        if (calibri.loss == "MAPE"){
-          store.tbl.ave[loss.ind,j,i]<--mean(abs((dt.loss$rv-dt.loss[,idx.mod[j]])/dt.loss$rv),na.rm=T)
-        }
+        store.tbl.tmp[loss.ind,,]=LS
       }
       
     }
     
+    
+    if (type == "full"){
+      date_idx=which(as.numeric(dimnames(store.tbl)[[2]]) %in% as.numeric(dimnames(store.tbl.tmp)[[2]]))
+      store.tbl[,date_idx,,i] = store.tbl.tmp
+    }
   }
   
-  return(store.tbl.ave)
+  
+  if (type == "full"){
+    return(store.tbl)
+  }
+  
+  
+  if (type == "ave"){
+    return(store.tbl.ave)
+  }
 }
 
 
@@ -1080,4 +1138,46 @@ process_mcs <- function(mcs_alpha, days, vers, depnum, current_wd, mcs_wd = "./m
   }
 }
 
-# Loss differentials functions
+
+######################## Loss differentials ########################
+
+
+# Process store_tbl object into a 3D array used later in trading strategy application 
+process_loss_differentials_3d <- function(store_tbl) {
+  
+  # Number of loss functions (dimension 1 of store.tbl)
+  num_loss_functions <- dim(store_tbl)[1]
+  
+  # Number of days (dimension 2 of store.tbl) 
+  num_days <- dim(store_tbl)[2]
+  
+  # Number of models (dimension 3 of store.tbl)
+  num_models <- dim(store_tbl)[3]
+  
+  # Number of stocks (dimension 4 of store.tbl)
+  num_stocks <- dim(store_tbl)[4]
+  
+  # Initialize the output array
+  # Dimensions:
+  # 1st - Loss functions
+  # 2nd - Days
+  # 3rd - Models (excluding HAR, so num_models - 1)
+  # 4th - Stocks
+  loss_differentials <- array(NA, dim = c(num_loss_functions, num_days, num_models - 1, num_stocks))
+  
+  # Extract the HAR benchmark losses (1st model in dimension 3)
+  har_model_losses <- store_tbl[, , 1, ] # Excludes the HAR model from further calculations
+  
+  # Compute loss differentials for each model (excluding HAR)
+  for (model_idx in 2:num_models) { # Start from the 2nd model
+    loss_differentials[, ,model_idx - 1, ] <- store_tbl[, , model_idx, ] - har_model_losses
+  }
+  
+  # Name the dimensions of loss_differentials
+  dimnames(loss_differentials)[[1]] <- dimnames(store_tbl)[[1]]  # Loss functions
+  dimnames(loss_differentials)[[2]] <- dimnames(store_tbl)[[2]]
+  dimnames(loss_differentials)[[3]] <- dimnames(store_tbl)[[3]][-1]  # Models (excluding HAR)
+  dimnames(loss_differentials)[[4]] <- dimnames(store_tbl)[[4]]  # Stocks
+  
+  return(loss_differentials)
+}
