@@ -20,12 +20,13 @@
   load("pq.RData")
   load("tw.RData")
   
-  # More explanatory variables: VIX, S&P500 RV
+  # More explanatory variables: 
+  # VIX (from https://fred.stlouisfed.org/series/VIXCLS)
   vix <- read_csv("VIXCLS.csv"); vix <- as.data.frame(vix)
   rownames(vix) <- vix$observation_date; vix <- vix[,-1, drop=F]
   colnames(vix) <- c("VIX")
   
-  # SP500 RV
+  # SP500 RV (from the Oxfordman RV library, see script /robustness_checks/sp_rv.R)
   load("SP_RV.RData")
   
 
