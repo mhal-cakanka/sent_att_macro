@@ -29,6 +29,9 @@ google/partial results/
 # Ignore "models/files" and "models/results" but keep other files in "models"
 models/files/
 models/results/
+models/table_results/
+# ignore files with .RData type
+models/*.RData
 
 # Ignore "proquest/data", "proquest/partial results", and "proquest/finbert.sent.csv" but keep rest
 proquest/data/
@@ -46,6 +49,7 @@ stockdata/symbols.RData
 # Ignore "tables/mcs" and "tables/results", keep rest
 tables/mcs/
 tables/results/
+tables/results_WLS3/
 
 # Ignore "twitter/data" and "twitter/partial results", keep rest
 twitter/data/
@@ -55,3 +59,10 @@ twitter/partial results/
 wiki/data/
 wiki/partial results/
 .positai
+
+robustness_checks/
+!robustness_checks/sp_rv.R
+!robustness_checks/global_risk/stock_indices.R
+!robustness_checks/global_risk/indices_model_flow.R
+!robustness_checks/global_risk/index_tables.R
+
