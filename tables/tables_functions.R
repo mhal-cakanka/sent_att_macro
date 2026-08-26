@@ -1142,7 +1142,7 @@ process_mcs <- function(mcs_alpha, days, vers, depnum, current_wd, mcs_wd = "./m
 ######################## Loss differentials ########################
 
 
-# Process store_tbl object into a 3D array used later in trading strategy application 
+# Process store_tbl object into a 4D array of losses used later in trading strategy application 
 process_loss_differentials_3d <- function(store_tbl) {
   
   # Number of loss functions (dimension 1 of store.tbl)

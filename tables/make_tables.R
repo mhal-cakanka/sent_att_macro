@@ -486,7 +486,7 @@ savetable(tablefile=tableS2, wd=results_wd,tblname="tableS2", vers = NULL, depnu
 ######################## Loss differentials ########################
 
 # Process store_tbl object into a 3D array used later in trading strategy application 
-# create results/table_results/ to store store.tbl and loss_differentials, if it does not exist
+# Stores store.tbl and loss_differentials in ./models/table_results
 tr_path = "./models/table_results"
 setwd(parent_wd)
 create_wd(tr_path)
@@ -505,11 +505,15 @@ nms <- c('Date','rv','har',"cslr_har_km5_full",'gen_dum',
 selection <- c("gen.att","att","gen.pos.fin.gen.neg.fin",
                "pos.fin.neg.fin","gen.dum","superbench_full")
 losses <- c("MSE","QLIKE","MAE","MAPE")
+ext.rem = 12 # approx 2% extreme observations to remove
 
+# type="full" returns 4D [losses, dates, models, stocks] with per-day loss values
 store.tbl <- get.store(out=results, ext.rem=ext.rem, losses=losses, type="full",
-                       selection=selection, model_dict=model_dict, nms=nms)
+                       selection=selection, model_dict=model_dict, nms=nms);gc()
+setwd(parent_wd)
 save(store.tbl, file = paste(tr_path, "store.tbl.RData", sep="/"), version = 2)
 
+# returns 4D [losses, dates, models, stocks] with per-day loss differentials to HAR model
 loss_differentials <- process_loss_differentials_3d(store.tbl)
 save(loss_differentials, file = paste(tr_path, "loss_differentials.RData", sep="/"), version = 2)
 
