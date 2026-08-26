@@ -66,3 +66,6 @@ robustness_checks/
 !robustness_checks/global_risk/indices_model_flow.R
 !robustness_checks/global_risk/index_tables.R
 
+portfolios/port_results
+portfolios/results
+portfolios/DTB4WK.csv
